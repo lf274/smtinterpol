@@ -370,7 +370,7 @@ public class XorTheory implements ITheory {
 
 	}
 
-	// start backtrack: alles was man ncoh propagieren wollte, raus nehmen
+
 
 	@Override
 	public Clause backtrackComplete() {
@@ -415,5 +415,12 @@ public class XorTheory implements ITheory {
 	public Object[] getStatistics() {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	@Override
+	public void backtrackStart() {
+		// start backtrack: alles was man noch propagieren wollte, raus nehmen
+		// TODO Auto-generated method stub
+
 	}
 }
