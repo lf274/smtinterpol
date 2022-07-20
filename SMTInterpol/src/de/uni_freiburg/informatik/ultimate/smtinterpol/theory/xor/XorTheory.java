@@ -116,6 +116,7 @@ public class XorTheory implements ITheory {
 				mNumberOfVars += 1;
 			}
 			if (atom.getDecideStatus() == null) {
+				// numUnassigned only counts column variables
 				numUnassigned++;
 			}
 			entries.set(position);
@@ -130,6 +131,7 @@ public class XorTheory implements ITheory {
 		final Term xorTerm = theory.term(SMTLIBConstants.XOR, smtAtoms);
 		// xorAtom is the row variable
 		xorAtom = new XorAtom(null, xorTerm, xorTerm.hashCode(), mClausifier.getStackLevel());
+		mClausifier.getEngine().addAtom(xorAtom);
 		mBuiltAtoms.put(entries, xorAtom);
 		final int xorPosition = mPosition.size();
 		mPosition.put(xorAtom, xorPosition);
@@ -182,21 +184,37 @@ public class XorTheory implements ITheory {
 		// literal has been set to true
 		final DPLLAtom setAtom = literal.getAtom();
 		final Integer setAtomPosition = mPosition.get(setAtom);
+
+		// not our literal
+		if (setAtomPosition == null) {
+			return null;
+		}
 		final VariableInfo setAtomInfo = mVariableInfos.get(setAtomPosition);
 		final int setAtomRowNumber = setAtomInfo.mRowNumber;
 
 		// recalculate counter of corresponding tableau rows (every row where the
 		// position of literal is set, i.e. 1)
+
+		// if the set variable is a row variable, we mark the row as dirty to propagate
+		// later
 		if (setAtomInfo.IsRow()) {
 			// markiere Zeile als dirty
 			final TableauRow row = mTableau.get(setAtomRowNumber);
 			row.mIsDirty = true;
 		} else {
+			// if the set variable is a column variable, we decrement the counter for all
+			// rows in which the set variable appears and check for conflicts
 			for (final TableauRow row : mTableau) {
 				final BitSet setAtomTableauRowEntries = row.getmEntries();
 				if (setAtomTableauRowEntries.get(setAtomPosition)) {
 					row.decrementUnassigned();
-					return checkForPropagationOrConflict(row); // ?
+
+					// FIXME glaube man muss erst checken ob man mit dem counter bei 0 ist
+					// bevor man checkForPropagationOrConflict(row) aufruft...
+
+					if (row.getNumUnassigned() == 0) {
+						return checkForPropagationOrConflict(row); // ?
+					}
 				}
 			}
 		}
@@ -206,12 +224,14 @@ public class XorTheory implements ITheory {
 	/**
 	 * This Function is called when all column variables are assigned. In this
 	 * function, the value of the row variable of the row given as parameter is
-	 * calculated Then, if we have no conflict, the row variable is added to the
-	 * propagation list to be propagated later in checkpoint() If we have a
+	 * calculated. Then, if we have no conflict, the row variable is added to the
+	 * propagation list to be propagated later in checkpoint(). If we have a
 	 * conflict, we return the conflict clause
 	 *
 	 * @param row
 	 * @return
+	 *
+	 *         TODO Test
 	 */
 	public Clause checkForPropagationOrConflict(final TableauRow row) {
 		final BitSet entries = row.getmEntries();
@@ -220,14 +240,14 @@ public class XorTheory implements ITheory {
 
 		for (int i = entries.nextSetBit(0); i >= 0; i = entries.nextSetBit(i + 1)) {
 			final VariableInfo varInfo = mVariableInfos.get(i);
-			final DPLLAtom varibleAtom = varInfo.mAtom;
-			final Boolean assignment = varibleAtom.getDecideStatus().getSign() > 0;
+			final DPLLAtom variableAtom = varInfo.mAtom;
+			final Boolean assignment = variableAtom.getDecideStatus().getSign() > 0;
 			// calculate result (value that the row variable should have)
 			Boolean.logicalXor(result, assignment);
 		}
 		// if the row variable is not decided yet (DecideStatus() == null), we add it to
 		// the propagation list mProplist to propagate later in checkpoint()
-		if (rowVariable.getAtom().getDecideStatus() == null) {
+		if (rowVariable.getAtom().getDecideStatus() == null && !mProplist.contains(rowVariable)) {
 			mProplist.add(rowVariable);
 		}
 		// conflict: if the result does not equal the assigned value for the row
@@ -241,41 +261,93 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void backtrackLiteral(final Literal literal) {
-		// counter anpassem
+		final DPLLAtom atomToBacktrack = literal.getAtom();
+		final int positionToBacktrack = mPosition.get(atomToBacktrack);
+		final VariableInfo varInfoToBacktrackInfo = mVariableInfos.get(positionToBacktrack);
 
+		if (!varInfoToBacktrackInfo.IsRow()) {
+			// if the variable to be backtracked is a column var, we need to update
+			// mNumUnassignedColumnVars for each row where the variable to be backtracked
+			// occurs.
+			for (final TableauRow row: mTableau) {
+				final BitSet entries = row.getmEntries();
+				if (entries.get(positionToBacktrack)) {
+					row.incrementUnassigned();
+				}
+			}
+
+		}
 	}
+
 
 	@Override
 	public Clause checkpoint() {
-		// TODO Auto-generated method stub
-		// pivotiere alle dirty Zeilen
-		// berechne die counter neu
-		// dabei kommen neue propagationen raus
-		// propagationen kommen in die liste
-		//
 		for (final TableauRow row : mTableau) {
 			if (row.mIsDirty) {
-				// pivot:
 				// choose column variable to swap with row variable: the first unassigned column
+				// variable
 				final int columnVarPosition = findUnassingedVarToSwap(row.mRowVar.mRowNumber);
+
+				// if this is the case, there are no unsassinged variables in this row.
+				assert columnVarPosition != -1;
+
 				swap(row.mRowVar.mColumnNumber, columnVarPosition);
+
+				row.mIsDirty = false;
 
 			}
 		}
-		// counter updaten
+		// check for conflicts and propagations
+		for (final TableauRow row : mTableau) {
+			if (row.getNumUnassigned() == 0) { // we are ready for checking for conflicts or propagations
+				final Clause conflictClause = checkForPropagationOrConflict(row);
+				if (conflictClause != null) {
+					return conflictClause;
+				}
+			}
+		}
 		return null;
 	}
 
+	/***
+	 * This function swaps two variables. the parameter rowVar becomes a column
+	 * Variable and the parameter columnVar becomes the new row variable.
+	 *
+	 * The columnVar must be unassigned.
+	 *
+	 *
+	 *
+	 * @param rowVar
+	 * @param columnVar
+	 */
 	public void swap(final int rowVar, final int columnVar) {
 		final VariableInfo rowVarInfo = mVariableInfos.get(rowVar);
-		final VariableInfo columnVariableInfo = mVariableInfos.get(columnVar);
+		final VariableInfo columnVarInfo = mVariableInfos.get(columnVar);
 		final TableauRow pivotRow = mTableau.get(rowVarInfo.mRowNumber);
 
-		// Zeilen durchgehen, in der columnVariablie vorkommt, Diese
-		// xor mit pivotzeile
 
+		// walk through rows of the tableau. if the column variable occurs, we xor that
+		// row with the pivot row
+		for (final TableauRow row : mTableau) {
+			final BitSet entries = row.getmEntries();
+			if (entries.get(columnVar) && row != pivotRow) {
+				entries.xor(pivotRow.getmEntries());
+				// counter updaten
+			}
+		}
+		// in the pivot row, the assigned row variable is now a column variable
+		// therefore we need to decrement the unassigned column variables for our pivot
+		// row.
+		pivotRow.decrementUnassigned();
 
+		// set the column variable given as argument as the new row variable for the
+		// pivot row
+		pivotRow.mRowVar = columnVarInfo;
+		columnVarInfo.mRowNumber = rowVarInfo.mRowNumber;
+		// set row variable as column variable
+		rowVarInfo.mRowNumber = -1;
 	}
+
 
 	public int findUnassingedVarToSwap(final int rowNumber) {
 		final TableauRow row = mTableau.get(rowNumber);

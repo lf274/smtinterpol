@@ -22,11 +22,12 @@ public class TableauRow {
 	private BitSet mEntries;
 
 	/**
-	 * mCounter counts the Variables in the TableauRow that are still unassigned
-	 * TODO: unassinged COLUMN variables zählen. Dann wäre bei 0 propagieren,
-	 * Konflikt ist wenn die Zeilenvariable einen Wert hat der nicht übereinstimmt
+	 * mCounter counts the COLUMN Variables in the TableauRow that are still
+	 * unassigned If mCounter is 0, its propagation time We have a conflict when
+	 * rowVar != xor ( columnVars )
 	 */
-	private int mNumUnassigned;
+	private int mNumUnassignedColumnVars;
+
 	VariableInfo mRowVar;
 
 	Boolean mIsDirty; // a row is dirty, if the row variable is set
@@ -42,11 +43,11 @@ public class TableauRow {
 
 
 	public int getNumUnassigned() {
-		return mNumUnassigned;
+		return mNumUnassignedColumnVars;
 	}
 
 	public void setNumUnassigned(final int mNumUnassigned) {
-		this.mNumUnassigned = mNumUnassigned;
+		mNumUnassignedColumnVars = mNumUnassigned;
 	}
 
 	public BitSet getmEntries() {
@@ -58,12 +59,22 @@ public class TableauRow {
 	}
 
 	/**
-	 * Counts the unassigned variables
+	 * Decrements the unassigned column variables.
 	 *
 	 * @param numberOfRow
 	 * @return
 	 */
 	public void decrementUnassigned() {
-		mNumUnassigned -= 1;
+		mNumUnassignedColumnVars -= 1;
+	}
+
+	/**
+	 * Increments the unassigned column variables.
+	 *
+	 * @param numberOfRow
+	 * @return
+	 */
+	public void incrementUnassigned() {
+		mNumUnassignedColumnVars += 1;
 	}
 }

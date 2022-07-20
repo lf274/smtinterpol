@@ -30,7 +30,8 @@ public class XorTheoryTest {
 	LogProxy mLogger;
 	Clausifier mClausifier;
 	DPLLEngine mDPLL;
-	DPLLAtom[] mAtoms;
+	DPLLAtom[] mAtoms1;
+	DPLLAtom[] mAtoms2;
 	XorTheory mXorTheory;
 
 
@@ -41,7 +42,7 @@ public class XorTheoryTest {
 		mDPLL = new DPLLEngine(mLogger, () -> false);
 		mClausifier = new Clausifier(mTheory, mDPLL, ProofMode.NONE);
 		mClausifier.setLogic(Logics.QF_UF);
-		mXorTheory = new XorTheory(mClausifier);
+		mXorTheory = mClausifier.getXorTheory();
 		createAtoms();
 	}
 
@@ -59,12 +60,34 @@ public class XorTheoryTest {
 		final DPLLAtom atomB = new BooleanVarAtom(termb, 0);
 		final DPLLAtom atomC = new BooleanVarAtom(termc, 0);
 		final DPLLAtom atomD = new BooleanVarAtom(termd, 0);
-		mAtoms = new DPLLAtom[] { atomA, atomB, atomC, atomD };
+		mDPLL.addAtom(atomA);
+		mDPLL.addAtom(atomB);
+		mDPLL.addAtom(atomC);
+		mDPLL.addAtom(atomD);
+		mAtoms1 = new DPLLAtom[] { atomA, atomB, atomC, atomD };
+
+		mTheory.declareFunction("e", Script.EMPTY_SORT_ARRAY, sort);
+		mTheory.declareFunction("f", Script.EMPTY_SORT_ARRAY, sort);
+		mTheory.declareFunction("g", Script.EMPTY_SORT_ARRAY, sort);
+		mTheory.declareFunction("h", Script.EMPTY_SORT_ARRAY, sort);
+		final Term terme = mTheory.term("e");
+		final Term termf = mTheory.term("f");
+		final Term termg = mTheory.term("g");
+		final Term termh = mTheory.term("h");
+		final DPLLAtom atomE = new BooleanVarAtom(terme, 0);
+		final DPLLAtom atomF = new BooleanVarAtom(termf, 0);
+		final DPLLAtom atomG = new BooleanVarAtom(termg, 0);
+		final DPLLAtom atomH = new BooleanVarAtom(termh, 0);
+		mDPLL.addAtom(atomE);
+		mDPLL.addAtom(atomF);
+		mDPLL.addAtom(atomG);
+		mDPLL.addAtom(atomH);
+		mAtoms2 = new DPLLAtom[] { atomA, atomB, atomC, atomD, atomE, atomF, atomG, atomH };
 	}
 
 	@Test
 	public void testCase1() {
-		final LinkedHashSet<DPLLAtom> atomSet = new LinkedHashSet<DPLLAtom>(Arrays.asList(mAtoms));
+		final LinkedHashSet<DPLLAtom> atomSet = new LinkedHashSet<DPLLAtom>(Arrays.asList(mAtoms1));
 		final Literal result = mXorTheory.buildXorLiteral(atomSet);
 		Assert.assertTrue(result instanceof XorAtom);
 		Assert.assertEquals("(xor a b c d)", result.getSMTFormula(mTheory).toString());
@@ -72,17 +95,39 @@ public class XorTheoryTest {
 
 	@Test
 	public void testCase2() {
-		final LinkedHashSet<DPLLAtom> atomSet1 = new LinkedHashSet<DPLLAtom>(Arrays.asList(mAtoms));
+		final LinkedHashSet<DPLLAtom> atomSet1 = new LinkedHashSet<DPLLAtom>(Arrays.asList(mAtoms1));
 		final Literal result1 = mXorTheory.buildXorLiteral(atomSet1);
 		final LinkedHashSet<DPLLAtom> atomSet2 = new LinkedHashSet<DPLLAtom>(
-				Arrays.asList(mAtoms[3], mAtoms[2], mAtoms[1], mAtoms[0]));
+				Arrays.asList(mAtoms1[3], mAtoms1[2], mAtoms1[1], mAtoms1[0]));
 		final Literal result2 = mXorTheory.buildXorLiteral(atomSet2);
 		Assert.assertSame(result1, result2);
 	}
 
 	@Test
 	public void testCase3() {
+		mDPLL.increaseDecideLevel();
+		mDPLL.setLiteral(mAtoms1[0]);
+		Assert.assertTrue((mAtoms1[0].getDecideStatus().getSign() > 0) == true);
+	}
 
+	@Test
+	public void testCase4() {
+//		mDPLL.setLiteral(mAtoms[0]);
+//		mDPLL.setLiteral(mAtoms[1]);
+//		mDPLL.setLiteral(mAtoms[2]);
+//		mDPLL.setLiteral(mAtoms[3]);
+		mDPLL.increaseDecideLevel();
+		final LinkedHashSet<DPLLAtom> atomSet1 = new LinkedHashSet<DPLLAtom>(
+				Arrays.asList(mAtoms2[0], mAtoms2[1], mAtoms2[2], mAtoms2[3]));
+		final LinkedHashSet<DPLLAtom> atomSet2 = new LinkedHashSet<DPLLAtom>(
+				Arrays.asList(mAtoms2[0], mAtoms2[5], mAtoms2[1], mAtoms2[6]));
+		final Literal literal1 = mXorTheory.buildXorLiteral(atomSet1);
+		mDPLL.setLiteral(literal1);
+		// mXorTheory.setLiteral(literal1);
+		final Literal literal2 = mXorTheory.buildXorLiteral(atomSet2);
+		Assert.assertEquals(true, mXorTheory.mTableau.get(0).mIsDirty);
+		mXorTheory.checkpoint();
+		Assert.assertEquals(false, mXorTheory.mTableau.get(0).mIsDirty);
 	}
 
 

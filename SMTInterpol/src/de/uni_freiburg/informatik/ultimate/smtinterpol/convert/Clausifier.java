@@ -94,6 +94,7 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.quant.QuantEqualit
 import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.quant.QuantLiteral;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.quant.QuantifierTheory;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.quant.QuantifierTheory.InstantiationMethod;
+import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.xor.XorTheory;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.util.ArrayMap;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.util.ScopedArrayList;
 import de.uni_freiburg.informatik.ultimate.util.datastructures.ScopedHashMap;
@@ -1344,6 +1345,7 @@ public class Clausifier {
 	private DataTypeTheory mDataTypeTheory;
 	private EprTheory mEprTheory;
 	private QuantifierTheory mQuantTheory;
+	private XorTheory mXorTheory;
 
 	/**
 	 * True, if the run function is already active.
@@ -2149,6 +2151,13 @@ public class Clausifier {
 		}
 	}
 
+	private void setupXorTheory() {
+		if (mXorTheory == null) {
+			mXorTheory = new XorTheory(this);
+			mEngine.addTheory(mXorTheory);
+		}
+	}
+
 	private void setupQuantifiers() {
 		if (mQuantTheory == null) {
 			mQuantTheory =
@@ -2183,6 +2192,9 @@ public class Clausifier {
 		if (logic.isDatatype()) {
 			setupDataTypeTheory();
 		}
+
+		setupXorTheory();
+
 		if (logic.isArithmetic()) {
 			setupLinArithmetic();
 		}
@@ -2194,6 +2206,7 @@ public class Clausifier {
 				setupQuantifiers();
 			}
 		}
+
 	}
 
 	// TODO What do we have to do for quantifiers here?
@@ -2265,6 +2278,10 @@ public class Clausifier {
 
 	public LinArSolve getLASolver() {
 		return mLASolver;
+	}
+
+	public XorTheory getXorTheory() {
+		return mXorTheory;
 	}
 
 	public LogProxy getLogger() {
