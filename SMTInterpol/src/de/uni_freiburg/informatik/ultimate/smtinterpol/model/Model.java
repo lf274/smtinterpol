@@ -48,6 +48,7 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.epr.EprTheory;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.epr.EprTheorySettings;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.linar.LinArSolve;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.quant.QuantifierTheory;
+import de.uni_freiburg.informatik.ultimate.smtinterpol.theory.xor.XorTheory;
 
 /**
  * A model represented as injection between integers and domain values. The integers should be positive. Furthermore,
@@ -113,6 +114,8 @@ public class Model implements de.uni_freiburg.informatik.ultimate.logic.Model {
 				if (!EprTheorySettings.FullInstatiationMode) {
 					throw new UnsupportedOperationException("Modelproduction for EPR theory not implemented.");
 				}
+			} else if (theorySolver instanceof XorTheory) {
+				// ignore
 			} else {
 				throw new InternalError("Unknown theory: " + theorySolver);
 			}

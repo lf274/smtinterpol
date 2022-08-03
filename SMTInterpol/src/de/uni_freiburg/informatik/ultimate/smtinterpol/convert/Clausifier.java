@@ -397,7 +397,7 @@ public class Clausifier {
 					return;
 				}
 
-				final ApplicationTerm at = (ApplicationTerm) idx;
+				ApplicationTerm at = (ApplicationTerm) idx;
 				final ILiteral lit;
 				if (mLiteral.mTmpCtr <= Config.OCC_INLINE_THRESHOLD &&
 						(positive ? (at.getFunction() == theory.mOr || at.getFunction() == theory.mImplies)
@@ -428,73 +428,26 @@ public class Clausifier {
 					quantified = true;
 				}
 				Term rewrite = mTracker.reflexivity(at);
-				// TODO build a method for this, this part is used in several methods
-				if (at.getFunction().getName().equals("true")) {
-					lit = mTRUE;
-				} else if (at.getFunction().getName().equals("false")) {
-					lit = mFALSE;
-				} else if (at.getFunction().getName().equals("=")) {
-					assert at.getParameters()[0].getSort() != mTheory.getBooleanSort();
-					final Term lhs = at.getParameters()[0];
-					final Term rhs = at.getParameters()[1];
-
-					if (quantified) {
-						// Find trivially true or false QuantLiterals.
-						final Term trivialEq = checkAndGetTrivialEquality(lhs, rhs, mTheory);
-						if (trivialEq == mTheory.mTrue) {
-							lit = mTRUE;
-						} else if (trivialEq == mTheory.mFalse) {
-							lit = mFALSE;
-						} else {
-							final Term newLhs = rewriteBooleanSubterms(lhs, mCollector.getSource());
-							final Term newRhs = rewriteBooleanSubterms(rhs, mCollector.getSource());
-							rewrite = mTracker.congruence(rewrite, new Term[] { newLhs, newRhs });
-							lit = mQuantTheory.getQuantEquality(mTracker.getProvedTerm(newLhs),
-									mTracker.getProvedTerm(newRhs), mCollector.getSource());
-						}
-					} else {
-						final EqualityProxy eq = createEqualityProxy(lhs, rhs, mCollector.getSource());
-						// eq == true and positive ==> set to true
-						// eq == true and !positive ==> noop
-						// eq == false and !positive ==> set to true
-						// eq == false and positive ==> noop
-						if (eq == EqualityProxy.getTrueProxy()) {
-							lit = mTRUE;
-						} else if (eq == EqualityProxy.getFalseProxy()) {
-							lit = mFALSE;
-						} else {
-							lit = eq.getLiteral(mCollector.getSource());
-						}
-					}
-				} else if (at.getFunction().getName().equals("<=")) {
-					// (<= SMTAffineTerm 0)
-					if (quantified) {
+				if (quantified) {
+					if (at.getFunction().getName().equals("=")) {
+						assert at.getParameters()[0].getSort() != mTheory.getBooleanSort();
+						final Term lhs = at.getParameters()[0];
+						final Term rhs = at.getParameters()[1];
+						final Term newLhs = rewriteBooleanSubterms(lhs, mCollector.getSource());
+						final Term newRhs = rewriteBooleanSubterms(rhs, mCollector.getSource());
+						rewrite = mTracker.congruence(rewrite, new Term[] { newLhs, newRhs });
+					} else if (at.getFunction().getName().equals("<=")) {
+						// (<= SMTAffineTerm 0)
 						final Term linTerm = at.getParameters()[0];
 						final Term zero = at.getParameters()[1];
 						final Term newLinTerm = rewriteBooleanSubterms(linTerm, mCollector.getSource());
 						rewrite = mTracker.congruence(rewrite, new Term[] { newLinTerm, mTracker.reflexivity(zero) });
-						lit = mQuantTheory.getQuantInequality(positive, mTracker.getProvedTerm(newLinTerm),
-								mCollector.getSource());
-					} else {
-						lit = createLeq0(at, mCollector.getSource());
-					}
-				} else if (!at.getFunction().isInterpreted() || Clausifier.needCCTerm(at)) {
-					if (quantified) {
+					} else if (!at.getFunction().isInterpreted() || Clausifier.needCCTerm(at)) {
 						rewrite = rewriteBooleanSubterms(at, mCollector.getSource());
 					}
-					lit = createBooleanLit((ApplicationTerm) mTracker.getProvedTerm(rewrite), mCollector.getSource());
-				} else {
-					lit = createAnonLiteral(idx, mCollector.getSource());
-					// aux axioms will always automatically created for quantified formulas
-					if (idx.getFreeVars().length == 0) {
-						if (positive) {
-							addAuxAxioms(idx, true, mCollector.getSource());
-						} else {
-							addAuxAxioms(idx, false, mCollector.getSource());
-						}
-					}
+					at = (ApplicationTerm) mTracker.getProvedTerm(rewrite);
 				}
-				// TODO end
+				lit = createLiteral(at, positive, mCollector.getSource());
 				rewrite = mTracker.transitivity(rewrite,
 						mTracker.intern(mTracker.getProvedTerm(rewrite), lit.getSMTFormula(theory)));
 				mCollector.addLiteral(positive ? lit : lit.negate(), at, rewrite, positive);
@@ -1003,6 +956,130 @@ public class Clausifier {
 
 	private Term rewriteBooleanSubterms(final Term term, final SourceAnnotation source) {
 		return new BooleanSubtermReplacer(source).transform(term);
+	}
+
+	public ILiteral createLiteral(Term term, boolean positive, SourceAnnotation source) {
+		final boolean quantified = term.getFreeVars().length > 0;
+		if (term instanceof ApplicationTerm) {
+			final ApplicationTerm at = (ApplicationTerm) term;
+
+
+			if (at.getFunction().getName().equals("true")) {
+				return mTRUE;
+			} else if (at.getFunction().getName().equals("false")) {
+				return mFALSE;
+			} else if (at.getFunction().getName().equals("xor") && !quantified) {
+				// funktion aufrufen, die term entschachtelt
+				// lit = createXorLiteral
+				return createXorLiteral(at, source);
+			} else if (at.getFunction().getName().equals("=")) {
+				assert at.getParameters()[0].getSort() != mTheory.getBooleanSort();
+				final Term lhs = at.getParameters()[0];
+				final Term rhs = at.getParameters()[1];
+
+				if (quantified) {
+					// Find trivially true or false QuantLiterals.
+					final Term trivialEq = checkAndGetTrivialEquality(lhs, rhs, mTheory);
+					if (trivialEq == mTheory.mTrue) {
+						return mTRUE;
+					} else if (trivialEq == mTheory.mFalse) {
+						return mFALSE;
+					} else {
+						return mQuantTheory.getQuantEquality(lhs, rhs, source);
+					}
+				} else {
+					final EqualityProxy eq = createEqualityProxy(lhs, rhs, source);
+					// eq == true and positive ==> set to true
+					// eq == true and !positive ==> noop
+					// eq == false and !positive ==> set to true
+					// eq == false and positive ==> noop
+					if (eq == EqualityProxy.getTrueProxy()) {
+						return mTRUE;
+					} else if (eq == EqualityProxy.getFalseProxy()) {
+						return mFALSE;
+					} else {
+						return eq.getLiteral(source);
+					}
+				}
+			} else if (at.getFunction().getName().equals("<=")) {
+				// (<= SMTAffineTerm 0)
+				if (quantified) {
+					final Term linTerm = at.getParameters()[0];
+					return mQuantTheory.getQuantInequality(positive, linTerm, source);
+				} else {
+					return createLeq0(at, source);
+				}
+			} else if (!at.getFunction().isInterpreted() || Clausifier.needCCTerm(at)) {
+				return createBooleanLit(at, source);
+			}
+		}
+		final ILiteral lit = createAnonLiteral(term, source);
+		// aux axioms will always automatically created for quantified formulas
+		if (!quantified) {
+			if (positive) {
+				addAuxAxioms(term, true, source);
+			} else {
+				addAuxAxioms(term, false, source);
+			}
+		}
+		return lit;
+	}
+
+	private ILiteral createXorLiteral(ApplicationTerm xorTerm, SourceAnnotation source) {
+		// to-do stack als liste von termen
+		// term ist xor: packe parameter auf todo stack
+		// term ist not: merken, wie viele not bereits gesehen
+		// sonst: create literal. gibt ILiteral zurück (True, False oder DPLL Literal)
+		// bei true nochmal negieren
+		// bei false ignorieren
+		// bei DPLL Literal: Atom holen, wenn DPLL Literal negiert war, Polarität ändern
+		// Linked Hashset aus Atomen bauen
+		// aus Linked HashSet XorLiteral bauen, bei ungeraden nots nochmal negieren
+		final ArrayDeque<Term> todoStack = new ArrayDeque<>();
+		final LinkedHashSet<DPLLAtom> atoms = new LinkedHashSet<>();
+		todoStack.addAll(Arrays.asList(xorTerm.getParameters()));
+		int amountOfNegations = 0;
+
+		while (!todoStack.isEmpty()) {
+			final Term term = todoStack.pop();
+			if (term instanceof ApplicationTerm) {
+				final ApplicationTerm at = (ApplicationTerm) term;
+				if (at.getFunction().getName().equals("xor")) {
+					todoStack.addAll(Arrays.asList(at.getParameters()));
+					continue;
+				} else if (at.getFunction().getName().equals("not")) {
+					amountOfNegations += 1;
+					todoStack.addAll(Arrays.asList(at.getParameters()));
+					continue;
+				} else if (at.getFunction().getName().equals("true")) {
+					amountOfNegations += 1;
+					// ignore
+					continue;
+				} else if (at.getFunction().getName().equals("false")) {
+					// ignore
+					continue;
+				}
+			}
+			final ILiteral result = createLiteral(term, true, source);
+			if (result == mTRUE) {
+				amountOfNegations += 1;
+				// ignore
+			} else if (result == mFALSE) {
+				// ignore
+			} else {
+				final Literal literalResult = (Literal) result;
+				if (literalResult.getSign() == -1) {
+					amountOfNegations += 1;
+				}
+				atoms.add(literalResult.getAtom());
+			}
+		}
+
+		ILiteral xorLiteral = mXorTheory.buildXorLiteral(atoms);
+		if (amountOfNegations % 2 == 1) {
+			xorLiteral = xorLiteral.negate();
+		}
+		return xorLiteral;
 	}
 
 	/**

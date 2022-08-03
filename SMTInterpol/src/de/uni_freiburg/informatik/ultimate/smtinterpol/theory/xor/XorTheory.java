@@ -34,8 +34,10 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.LogProxy;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.convert.Clausifier;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.Clause;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLAtom;
+import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLEngine;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.ITheory;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.Literal;
+import de.uni_freiburg.informatik.ultimate.smtinterpol.util.ScopedArrayList;
 
 /**
  * Class implementing a XOR-reasoning module.
@@ -68,7 +70,7 @@ public class XorTheory implements ITheory {
 	/**
 	 * The Tableau
 	 */
-	ArrayList<TableauRow> mTableau;
+	ScopedArrayList<TableauRow> mTableau;
 	/**
 	 * List of Variable Infos for every variable. the variableInfo in
 	 * mVariableInfos[i] belongs to the variable on position i (i.e. with key i in
@@ -86,7 +88,7 @@ public class XorTheory implements ITheory {
 		mBuiltAtoms = new LinkedHashMap<>();
 		mProplist = new ArrayDeque<>();
 
-		mTableau = new ArrayList<TableauRow>();
+		mTableau = new ScopedArrayList<TableauRow>();
 		mVariableInfos = new ArrayList<VariableInfo>();
 		mVariableSet = new HashSet<DPLLAtom>();
 
@@ -169,13 +171,14 @@ public class XorTheory implements ITheory {
 	@Override
 	public Clause startCheck() {
 		// TODO Auto-generated method stub
+		// momentan nicht wichtig
 		return null;
 	}
 
 	@Override
 	public void endCheck() {
 		// TODO Auto-generated method stub
-
+		// momentan nicht wichtig
 	}
 
 	@Override
@@ -262,7 +265,12 @@ public class XorTheory implements ITheory {
 	@Override
 	public void backtrackLiteral(final Literal literal) {
 		final DPLLAtom atomToBacktrack = literal.getAtom();
-		final int positionToBacktrack = mPosition.get(atomToBacktrack);
+		final Integer positionToBacktrack = mPosition.get(atomToBacktrack);
+
+		if (positionToBacktrack == null) {
+			return;
+		}
+
 		final VariableInfo varInfoToBacktrackInfo = mVariableInfos.get(positionToBacktrack);
 
 		if (!varInfoToBacktrackInfo.IsRow()) {
@@ -288,7 +296,7 @@ public class XorTheory implements ITheory {
 				// variable
 				final int columnVarPosition = findUnassingedVarToSwap(row.mRowVar.mRowNumber);
 
-				// if this is the case, there are no unsassinged variables in this row.
+				// if this is the case, there are no unassigned variables in this row.
 				assert columnVarPosition != -1;
 
 				swap(row.mRowVar.mColumnNumber, columnVarPosition);
@@ -409,75 +417,82 @@ public class XorTheory implements ITheory {
 	@Override
 	public Literal getSuggestion() {
 		// TODO Auto-generated method stub
+		// momentan nicht wichtig
 		return null;
 	}
 
 	@Override
 	public int checkCompleteness() {
-		// TODO Auto-generated method stub
-		return 0;
+		return DPLLEngine.COMPLETE;
 	}
 
 	@Override
 	public void printStatistics(final LogProxy logger) {
 		// TODO Auto-generated method stub
-
+		// wie viel zeit gebraucht zum pivoten
 	}
 
 	@Override
 	public void dumpModel(final LogProxy logger) {
 		// TODO Auto-generated method stub
-
+		// debugging funktion
 	}
 
 	@Override
 	public void increasedDecideLevel(final int currentDecideLevel) {
 		// TODO Auto-generated method stub
+		// momentan nicht wichtig
 
 	}
 
 	@Override
 	public void decreasedDecideLevel(final int currentDecideLevel) {
 		// TODO Auto-generated method stub
-
+		// momentan nicht wichtig
 	}
 
 
 
 	@Override
 	public Clause backtrackComplete() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public void backtrackAll() {
 		// TODO Auto-generated method stub
+		// momentan nicht wichtig
 
 	}
 
 	@Override
 	public void restart(final int iteration) {
 		// TODO Auto-generated method stub
+		// momentan nicht wichtig
 
 	}
 
 	@Override
 	public void removeAtom(final DPLLAtom atom) {
 		// TODO Auto-generated method stub
+		// Zeilen löschen, in denen das Atom vorkommt
 
 	}
 
 	@Override
 	public void push() {
 		// TODO Auto-generated method stub
-		// scope bei scoped array list merken
+		// siehe LA Theorie.
+		// startscope bei allen ScopedArrayLists
+		// merken, wie viele Zeilen man hat
 
 	}
 
 	@Override
 	public void pop() {
 		// TODO Auto-generated method stub
+		// siehe LA Theorie
+		// endscope bei allen ScopedArrayLists
 		// gelöschte Variablen durchgehen.
 		// Zustand vor dem zugehörigen push wiederherstellen
 
@@ -491,8 +506,6 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void backtrackStart() {
-		// start backtrack: alles was man noch propagieren wollte, raus nehmen
-		// TODO Auto-generated method stub
-
+		mProplist.clear();
 	}
 }

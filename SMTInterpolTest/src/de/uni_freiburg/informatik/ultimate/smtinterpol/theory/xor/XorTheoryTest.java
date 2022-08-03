@@ -1,5 +1,7 @@
 package de.uni_freiburg.informatik.ultimate.smtinterpol.theory.xor;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 
@@ -20,6 +22,7 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.convert.Clausifier;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.BooleanVarAtom;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLAtom;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLEngine;
+import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.ILiteral;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.Literal;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.SMTInterpol.ProofMode;
 
@@ -33,6 +36,7 @@ public class XorTheoryTest {
 	DPLLAtom[] mAtoms1;
 	DPLLAtom[] mAtoms2;
 	XorTheory mXorTheory;
+	Term mA, mB, mC;
 
 
 	public XorTheoryTest() {
@@ -56,6 +60,9 @@ public class XorTheoryTest {
 		final Term termc = mTheory.term("c");
 		final Term termb = mTheory.term("b");
 		final Term terma = mTheory.term("a");
+		mA = terma;
+		mB = termb;
+		mC = termc;
 		final DPLLAtom atomA = new BooleanVarAtom(terma, 0);
 		final DPLLAtom atomB = new BooleanVarAtom(termb, 0);
 		final DPLLAtom atomC = new BooleanVarAtom(termc, 0);
@@ -130,5 +137,18 @@ public class XorTheoryTest {
 		Assert.assertEquals(false, mXorTheory.mTableau.get(0).mIsDirty);
 	}
 
+	@Test
+	public void testClausifier1() {
+		final Term xorTerm = mTheory.term(SMTLIBConstants.XOR, mA, mB, mC);
+		final ILiteral result = mClausifier.createLiteral(xorTerm, true, null);
+		assertEquals(xorTerm, result.getSMTFormula(mTheory));
+	}
+
+	// verschachtelten Fall testen
+	public void testClausifier2() {
+		final Term negatedA = mTheory.not(mA);
+		final Term xorTerm = mTheory.term(SMTLIBConstants.XOR, negatedA, mB, mC);
+
+	}
 
 }
