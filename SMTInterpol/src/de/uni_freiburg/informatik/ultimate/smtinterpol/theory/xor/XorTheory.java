@@ -170,14 +170,12 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public Clause startCheck() {
-		// TODO Auto-generated method stub
 		// momentan nicht wichtig
 		return null;
 	}
 
 	@Override
 	public void endCheck() {
-		// TODO Auto-generated method stub
 		// momentan nicht wichtig
 	}
 
@@ -211,9 +209,6 @@ public class XorTheory implements ITheory {
 				final BitSet setAtomTableauRowEntries = row.getmEntries();
 				if (setAtomTableauRowEntries.get(setAtomPosition)) {
 					row.decrementUnassigned();
-
-					// FIXME glaube man muss erst checken ob man mit dem counter bei 0 ist
-					// bevor man checkForPropagationOrConflict(row) aufruft...
 
 					if (row.getNumUnassigned() == 0) {
 						return checkForPropagationOrConflict(row); // ?
@@ -416,7 +411,6 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public Literal getSuggestion() {
-		// TODO Auto-generated method stub
 		// momentan nicht wichtig
 		return null;
 	}
@@ -440,14 +434,12 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void increasedDecideLevel(final int currentDecideLevel) {
-		// TODO Auto-generated method stub
 		// momentan nicht wichtig
 
 	}
 
 	@Override
 	public void decreasedDecideLevel(final int currentDecideLevel) {
-		// TODO Auto-generated method stub
 		// momentan nicht wichtig
 	}
 
@@ -460,47 +452,81 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void backtrackAll() {
-		// TODO Auto-generated method stub
 		// momentan nicht wichtig
 
 	}
 
 	@Override
 	public void restart(final int iteration) {
-		// TODO Auto-generated method stub
 		// momentan nicht wichtig
 
 	}
 
 	@Override
 	public void removeAtom(final DPLLAtom atom) {
-		// TODO Auto-generated method stub
-		// Zeilen löschen, in denen das Atom vorkommt
-
+		final int position = mPosition.get(atom);
+		// remove all rows where atom occurs
+		for (final TableauRow row : mTableau) {
+			final BitSet entries = row.getmEntries();
+			if (entries.get(position)) {
+				mTableau.remove(row);
+			}
+		}
 	}
 
 	@Override
 	public void push() {
-		// TODO Auto-generated method stub
 		// siehe LA Theorie.
 		// startscope bei allen ScopedArrayLists
+		// -------------------------------------------------------------------------
+		// Frage dazu: Soll außer das Tableau noch was anderes ScopedArrayList sein?
+		// -------------------------------------------------------------------------
 		// merken, wie viele Zeilen man hat
+		mTableau.beginScope();
 
 	}
 
 	@Override
 	public void pop() {
-		// TODO Auto-generated method stub
 		// siehe LA Theorie
 		// endscope bei allen ScopedArrayLists
 		// gelöschte Variablen durchgehen.
+		// ---------------------------------------------------------------------------
+		// Frage dazu: manche Variablen, die in der Tableau-Reihe einen Eintrag hat,
+		// kommen ja auch in anderen Reihen vor. Es wäre doch zu mühsam, für jede
+		// Variable, die in einer zu löschenden Reihe vorkommt, zu checken ob sie nicht
+		// doch irgendwo anders vorkommt bevor man die legal löschen darf. Die
+		// row-variable kann man löschen, die kommt ja eh nur einmal im Tableau vor.
+		// ---------------------------------------------------------------------------
 		// Zustand vor dem zugehörigen push wiederherstellen
+		TableauRow rowToDelete;
+		BitSet entriesToDelete;
+		VariableInfo rowVarToDeleteInfo;
+		int rowVarToDeletePosition;
+		DPLLAtom rowVarAtom;
+		final int prevVarNum = mTableau.getLastScopeSize();
+		// for every new Tableau row since last push:
+		for (int i = mTableau.size() - 1; i >= prevVarNum; i--) {
+			rowToDelete = mTableau.get(i);
+			rowVarToDeleteInfo = rowToDelete.mRowVar;
+			rowVarAtom = rowVarToDeleteInfo.mAtom;
 
+			rowVarToDeletePosition = mPosition.get(rowVarAtom);
+			// remove row var from mVariableInfos
+			mVariableInfos.remove(rowVarToDeletePosition);
+			// remove row var from mPosition
+			mPosition.remove(rowVarAtom);
+			entriesToDelete = rowToDelete.getmEntries();
+			// remove corresponding xor-Atom from mBuiltAtoms
+			mBuiltAtoms.remove(entriesToDelete);
+
+		}
+		mProplist.clear();
 	}
+
 
 	@Override
 	public Object[] getStatistics() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

@@ -36,7 +36,7 @@ public class XorTheoryTest {
 	DPLLAtom[] mAtoms1;
 	DPLLAtom[] mAtoms2;
 	XorTheory mXorTheory;
-	Term mA, mB, mC;
+	Term mA, mB, mC, mE, mF, mG;
 
 
 	public XorTheoryTest() {
@@ -81,6 +81,9 @@ public class XorTheoryTest {
 		final Term termf = mTheory.term("f");
 		final Term termg = mTheory.term("g");
 		final Term termh = mTheory.term("h");
+		mE = terme;
+		mF = termf;
+		mG = termg;
 		final DPLLAtom atomE = new BooleanVarAtom(terme, 0);
 		final DPLLAtom atomF = new BooleanVarAtom(termf, 0);
 		final DPLLAtom atomG = new BooleanVarAtom(termg, 0);
@@ -91,6 +94,9 @@ public class XorTheoryTest {
 		mDPLL.addAtom(atomH);
 		mAtoms2 = new DPLLAtom[] { atomA, atomB, atomC, atomD, atomE, atomF, atomG, atomH };
 	}
+
+	// ---------------------------------------------------------------------------------------
+	// Test buildXorLiteral
 
 	@Test
 	public void testCase1() {
@@ -109,6 +115,9 @@ public class XorTheoryTest {
 		final Literal result2 = mXorTheory.buildXorLiteral(atomSet2);
 		Assert.assertSame(result1, result2);
 	}
+
+	// ----------------------------------------------------------------------------------------------------
+	// Test setLiteral
 
 	@Test
 	public void testCase3() {
@@ -137,6 +146,9 @@ public class XorTheoryTest {
 		Assert.assertEquals(false, mXorTheory.mTableau.get(0).mIsDirty);
 	}
 
+	// ------------------------------------------------------------------------------------------------------
+	// Test Clausifier
+
 	@Test
 	public void testClausifier1() {
 		final Term xorTerm = mTheory.term(SMTLIBConstants.XOR, mA, mB, mC);
@@ -145,10 +157,15 @@ public class XorTheoryTest {
 	}
 
 	// verschachtelten Fall testen
+	@Test
 	public void testClausifier2() {
 		final Term negatedA = mTheory.not(mA);
 		final Term xorTerm = mTheory.term(SMTLIBConstants.XOR, negatedA, mB, mC);
-
+		final Term nestedXorTerm = mTheory.term(SMTLIBConstants.XOR, mE, mF, mG, xorTerm);
+		final ILiteral result = mClausifier.createLiteral(nestedXorTerm, true, null);
 	}
+
+	// --------------------------------------------------------------------------------------------------------
+	// Test checkForPropagationOrConflict
 
 }
