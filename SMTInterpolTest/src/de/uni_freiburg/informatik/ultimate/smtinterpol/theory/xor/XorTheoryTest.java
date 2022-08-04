@@ -33,10 +33,10 @@ public class XorTheoryTest {
 	LogProxy mLogger;
 	Clausifier mClausifier;
 	DPLLEngine mDPLL;
-	DPLLAtom[] mAtoms1;
-	DPLLAtom[] mAtoms2;
+	DPLLAtom[] mAtoms1, mAtoms2;
+	DPLLAtom[] mExample1, mExample2;
 	XorTheory mXorTheory;
-	Term mA, mB, mC, mE, mF, mG;
+	Term mA, mB, mC, mD, mE, mF, mG;
 
 
 	public XorTheoryTest() {
@@ -63,6 +63,7 @@ public class XorTheoryTest {
 		mA = terma;
 		mB = termb;
 		mC = termc;
+		mD = termd;
 		final DPLLAtom atomA = new BooleanVarAtom(terma, 0);
 		final DPLLAtom atomB = new BooleanVarAtom(termb, 0);
 		final DPLLAtom atomC = new BooleanVarAtom(termc, 0);
@@ -92,7 +93,12 @@ public class XorTheoryTest {
 		mDPLL.addAtom(atomF);
 		mDPLL.addAtom(atomG);
 		mDPLL.addAtom(atomH);
+
 		mAtoms2 = new DPLLAtom[] { atomA, atomB, atomC, atomD, atomE, atomF, atomG, atomH };
+
+		// these examples are from the paper:
+		mExample1 = new DPLLAtom[] { atomA, atomC, atomE };
+		mExample1 = new DPLLAtom[] { atomA, atomB, atomD, atomE };
 	}
 
 	// ---------------------------------------------------------------------------------------
@@ -147,7 +153,7 @@ public class XorTheoryTest {
 	}
 
 	// ------------------------------------------------------------------------------------------------------
-	// Test Clausifier
+	// Test Clausifier createLiteral
 
 	@Test
 	public void testClausifier1() {
@@ -156,16 +162,37 @@ public class XorTheoryTest {
 		assertEquals(xorTerm, result.getSMTFormula(mTheory));
 	}
 
-	// verschachtelten Fall testen
+	// Test Case for nested XorTerms with uneven amounts of negations
 	@Test
 	public void testClausifier2() {
 		final Term negatedA = mTheory.not(mA);
 		final Term xorTerm = mTheory.term(SMTLIBConstants.XOR, negatedA, mB, mC);
 		final Term nestedXorTerm = mTheory.term(SMTLIBConstants.XOR, mE, mF, mG, xorTerm);
 		final ILiteral result = mClausifier.createLiteral(nestedXorTerm, true, null);
+		assertEquals("(not (xor e f g b c a))", result.getSMTFormula(mTheory).toString());
 	}
 
 	// --------------------------------------------------------------------------------------------------------
 	// Test checkForPropagationOrConflict
+
+	// no conflict
+	@Test
+	public void testcheckForPropagationOrConflict1() {
+		mDPLL.increaseDecideLevel();
+		final Term exampleTerm1 = mTheory.term(SMTLIBConstants.XOR, mA, mC, mE);
+		final ILiteral exampleLiteral1 = mClausifier.createLiteral(exampleTerm1, true, null);
+		final Term exampleTerm2 = mTheory.term(SMTLIBConstants.XOR, mA, mB, mD, mE);
+		final ILiteral exampleLiteral2 = mClausifier.createLiteral(exampleTerm2, true, null);
+
+		// set all column literals to true
+		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(0).mAtom);
+		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(1).mAtom);
+		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(2).mAtom);
+		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(4).mAtom);
+		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(5).mAtom);
+
+		// mXorTheory.checkForPropagationOrConflict(mXorTheory.mTableau.get(0));
+		assertEquals(1, mXorTheory.mProplist.size());
+	}
 
 }

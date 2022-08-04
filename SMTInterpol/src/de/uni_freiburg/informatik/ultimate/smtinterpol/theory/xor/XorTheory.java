@@ -220,9 +220,13 @@ public class XorTheory implements ITheory {
 	}
 
 	/**
-	 * This Function is called when all column variables are assigned. In this
-	 * function, the value of the row variable of the row given as parameter is
-	 * calculated. Then, if we have no conflict, the row variable is added to the
+	 * This Function is called when all column variables are assigned.
+	 * ---------------------------------------------------------------------------
+	 * Frage: Das stimmt nicht, wird auch bei setLiteral aufgerufen. Deshalb erst
+	 * checken, ob es einen Decide Status gibt.
+	 * ----------------------------------------------------------------------------
+	 * In this function, the value of the row variable of the row given as parameter
+	 * is calculated. Then, if we have no conflict, the row variable is added to the
 	 * propagation list to be propagated later in checkpoint(). If we have a
 	 * conflict, we return the conflict clause
 	 *
@@ -239,9 +243,15 @@ public class XorTheory implements ITheory {
 		for (int i = entries.nextSetBit(0); i >= 0; i = entries.nextSetBit(i + 1)) {
 			final VariableInfo varInfo = mVariableInfos.get(i);
 			final DPLLAtom variableAtom = varInfo.mAtom;
-			final Boolean assignment = variableAtom.getDecideStatus().getSign() > 0;
+			// final Boolean assignment = variableAtom.getDecideStatus().getSign() > 0;
+
 			// calculate result (value that the row variable should have)
-			Boolean.logicalXor(result, assignment);
+			// only calculate with variables that actually have a decide status
+			if (variableAtom.getDecideStatus() != null) {
+				final Boolean assignment = variableAtom.getDecideStatus().getSign() > 0;
+				Boolean.logicalXor(result, assignment);
+			}
+
 		}
 		// if the row variable is not decided yet (DecideStatus() == null), we add it to
 		// the propagation list mProplist to propagate later in checkpoint()
@@ -250,7 +260,8 @@ public class XorTheory implements ITheory {
 		}
 		// conflict: if the result does not equal the assigned value for the row
 		// variable, we return a conflict clause
-		if (rowVariable.getAtom().getDecideStatus().getSign() > 0 != result) {
+		if (rowVariable.getAtom().getDecideStatus() != null
+				&& rowVariable.getAtom().getDecideStatus().getSign() > 0 != result) {
 			return getUnitClause(rowVariable.getAtom());
 		}
 		return null;
@@ -283,6 +294,7 @@ public class XorTheory implements ITheory {
 	}
 
 
+	// TODO: Test
 	@Override
 	public Clause checkpoint() {
 		for (final TableauRow row : mTableau) {
