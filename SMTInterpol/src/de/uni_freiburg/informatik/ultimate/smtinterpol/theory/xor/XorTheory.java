@@ -210,8 +210,12 @@ public class XorTheory implements ITheory {
 				if (setAtomTableauRowEntries.get(setAtomPosition)) {
 					row.decrementUnassigned();
 
+
 					if (row.getNumUnassigned() == 0) {
-						return checkForPropagationOrConflict(row); // ?
+						final Clause potentialConflictClause = checkForPropagationOrConflict(row);
+						if (potentialConflictClause != null) { // früher: direkt return
+							return potentialConflictClause; // was, wenn man 2 conflicts hat?
+						}
 					}
 				}
 			}
@@ -221,10 +225,6 @@ public class XorTheory implements ITheory {
 
 	/**
 	 * This Function is called when all column variables are assigned.
-	 * ---------------------------------------------------------------------------
-	 * Frage: Das stimmt nicht, wird auch bei setLiteral aufgerufen. Deshalb erst
-	 * checken, ob es einen Decide Status gibt.
-	 * ----------------------------------------------------------------------------
 	 * In this function, the value of the row variable of the row given as parameter
 	 * is calculated. Then, if we have no conflict, the row variable is added to the
 	 * propagation list to be propagated later in checkpoint(). If we have a

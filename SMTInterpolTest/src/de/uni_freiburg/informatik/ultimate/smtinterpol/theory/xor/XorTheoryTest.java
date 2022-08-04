@@ -191,8 +191,7 @@ public class XorTheoryTest {
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(4).mAtom);
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(5).mAtom);
 
-		// mXorTheory.checkForPropagationOrConflict(mXorTheory.mTableau.get(0));
-		assertEquals(1, mXorTheory.mProplist.size());
+		assertEquals(2, mXorTheory.mProplist.size());
 	}
 
 }
