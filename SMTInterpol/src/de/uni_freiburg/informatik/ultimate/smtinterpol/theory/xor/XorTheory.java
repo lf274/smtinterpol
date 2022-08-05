@@ -179,6 +179,11 @@ public class XorTheory implements ITheory {
 		// momentan nicht wichtig
 	}
 
+	/**
+	 * A conflict clause should be returned immediately? dann muss am ende return
+	 * checkForPropagationAndConflicts() aufgerufen werden. Oder erst bei
+	 * checkpoint?
+	 */
 	@Override
 	public Clause setLiteral(final Literal literal) {
 
