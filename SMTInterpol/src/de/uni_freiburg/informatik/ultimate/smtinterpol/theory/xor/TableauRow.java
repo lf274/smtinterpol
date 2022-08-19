@@ -32,6 +32,8 @@ public class TableauRow {
 
 	Boolean mIsDirty; // a row is dirty, if the row variable is set
 
+	Set<DPLLAtom> mDpllAtoms;
+
 
 	public TableauRow(final BitSet newRow, final int numUnassigned, final VariableInfo rowVar,
 			final Set<DPLLAtom> dpllAtoms) {
@@ -39,6 +41,7 @@ public class TableauRow {
 		setNumUnassigned(numUnassigned);
 		mRowVar = rowVar;
 		mIsDirty = false;
+		mDpllAtoms = dpllAtoms;
 	}
 
 
@@ -76,5 +79,14 @@ public class TableauRow {
 	 */
 	public void incrementUnassigned() {
 		mNumUnassignedColumnVars += 1;
+	}
+
+	public void calculateUnassigned() {
+		mNumUnassignedColumnVars = 0;
+		for (final DPLLAtom atom : mDpllAtoms) {
+			if (atom != mRowVar.mAtom && atom.getDecideStatus() == null) {
+				mNumUnassignedColumnVars += 1;
+			}
+		}
 	}
 }

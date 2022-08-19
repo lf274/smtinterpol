@@ -54,11 +54,11 @@ public class XorTheory implements ITheory {
 	final int mNumberOfRows;
 	/** Number of variables */
 	int mNumberOfVars;
-	/** Column number of a Literal */
+	/** Column number of a Literal. */
 	LinkedHashMap<DPLLAtom, Integer> mPosition;
 	/**
 	 * Atoms that are already built, position in BitSet is 1 for every variable
-	 * involved in XorAtom
+	 * involved in XorAtom.
 	 */
 	LinkedHashMap<BitSet, XorAtom> mBuiltAtoms;
 	/**
@@ -76,7 +76,7 @@ public class XorTheory implements ITheory {
 	 * mVariableInfos[i] belongs to the variable on position i (i.e. with key i in
 	 * mPosition)
 	 */
-	ArrayList<VariableInfo> mVariableInfos;
+	ScopedArrayList<VariableInfo> mVariableInfos;
 
 	private final Set<DPLLAtom> mVariableSet;
 
@@ -89,7 +89,7 @@ public class XorTheory implements ITheory {
 		mProplist = new ArrayDeque<>();
 
 		mTableau = new ScopedArrayList<TableauRow>();
-		mVariableInfos = new ArrayList<VariableInfo>();
+		mVariableInfos = new ScopedArrayList<VariableInfo>();
 		mVariableSet = new HashSet<DPLLAtom>();
 
 	}
@@ -219,7 +219,7 @@ public class XorTheory implements ITheory {
 					if (row.getNumUnassigned() == 0) {
 						final Clause potentialConflictClause = checkForPropagationOrConflict(row);
 						if (potentialConflictClause != null) { // früher: direkt return
-							return potentialConflictClause; // was, wenn man 2 conflicts hat?
+							return potentialConflictClause;
 						}
 					}
 				}
@@ -353,6 +353,7 @@ public class XorTheory implements ITheory {
 			if (entries.get(columnVar) && row != pivotRow) {
 				entries.xor(pivotRow.getmEntries());
 				// counter updaten
+				row.calculateUnassigned();
 			}
 		}
 		// in the pivot row, the assigned row variable is now a column variable
@@ -383,7 +384,6 @@ public class XorTheory implements ITheory {
 	@Override
 	public Clause computeConflictClause() {
 		// final check
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -495,11 +495,9 @@ public class XorTheory implements ITheory {
 	public void push() {
 		// siehe LA Theorie.
 		// startscope bei allen ScopedArrayLists
-		// -------------------------------------------------------------------------
-		// Frage dazu: Soll außer das Tableau noch was anderes ScopedArrayList sein?
-		// -------------------------------------------------------------------------
 		// merken, wie viele Zeilen man hat
 		mTableau.beginScope();
+		mVariableInfos.beginScope();
 
 	}
 
@@ -508,13 +506,6 @@ public class XorTheory implements ITheory {
 		// siehe LA Theorie
 		// endscope bei allen ScopedArrayLists
 		// gelöschte Variablen durchgehen.
-		// ---------------------------------------------------------------------------
-		// Frage dazu: manche Variablen, die in der Tableau-Reihe einen Eintrag hat,
-		// kommen ja auch in anderen Reihen vor. Es wäre doch zu mühsam, für jede
-		// Variable, die in einer zu löschenden Reihe vorkommt, zu checken ob sie nicht
-		// doch irgendwo anders vorkommt bevor man die legal löschen darf. Die
-		// row-variable kann man löschen, die kommt ja eh nur einmal im Tableau vor.
-		// ---------------------------------------------------------------------------
 		// Zustand vor dem zugehörigen push wiederherstellen
 		TableauRow rowToDelete;
 		BitSet entriesToDelete;
@@ -522,6 +513,7 @@ public class XorTheory implements ITheory {
 		int rowVarToDeletePosition;
 		DPLLAtom rowVarAtom;
 		final int prevVarNum = mTableau.getLastScopeSize();
+		final int lastScopeVarInfo = mVariableInfos.getLastScopeSize();
 		// for every new Tableau row since last push:
 		for (int i = mTableau.size() - 1; i >= prevVarNum; i--) {
 			rowToDelete = mTableau.get(i);
@@ -529,15 +521,18 @@ public class XorTheory implements ITheory {
 			rowVarAtom = rowVarToDeleteInfo.mAtom;
 
 			rowVarToDeletePosition = mPosition.get(rowVarAtom);
-			// remove row var from mVariableInfos
-			mVariableInfos.remove(rowVarToDeletePosition);
-			// remove row var from mPosition
-			mPosition.remove(rowVarAtom);
 			entriesToDelete = rowToDelete.getmEntries();
 			// remove corresponding xor-Atom from mBuiltAtoms
 			mBuiltAtoms.remove(entriesToDelete);
 
 		}
+		for (int i = mVariableInfos.size() - 1; i >= lastScopeVarInfo; i--) {
+			rowVarToDeleteInfo = mVariableInfos.get(i);
+			mPosition.remove(rowVarToDeleteInfo.mAtom);
+
+		}
+		mTableau.endScope();
+		mVariableInfos.endScope();
 		mProplist.clear();
 	}
 

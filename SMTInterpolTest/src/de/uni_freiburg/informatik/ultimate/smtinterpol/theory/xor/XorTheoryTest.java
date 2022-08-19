@@ -206,7 +206,6 @@ public class XorTheoryTest {
 		// set all column literals to true
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(0).mAtom);
 		assertEquals(true, mXorTheory.mVariableInfos.get(0).mAtom.getDecideStatus().getSign() > 0);
-		// WHY does this assertion fail???
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(1).mAtom);
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(2).mAtom);
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(4).mAtom);
@@ -218,5 +217,35 @@ public class XorTheoryTest {
 		mXorTheory.checkForPropagationOrConflict(mXorTheory.mTableau.get(mXorTheory.mVariableInfos.get(3).mRowNumber));
 		assertEquals(2, mXorTheory.mProplist.size());
 	}
+
+	// --------------------------------------------------------------------------------------------------------
+	// Test checkpoint
+
+	@Test
+	public void testCheckpoint() {
+		mDPLL.increaseDecideLevel();
+
+		final Term exampleTerm1 = mTheory.term(SMTLIBConstants.XOR, mA, mB);
+		final ILiteral exampleLiteral1 = mClausifier.createLiteral(exampleTerm1, true, null);
+		final Term exampleTerm2 = mTheory.term(SMTLIBConstants.XOR, mA, mC, mD);
+		final ILiteral exampleLiteral2 = mClausifier.createLiteral(exampleTerm2, true, null);
+
+		// set row var
+		mDPLL.setLiteral(mXorTheory.mTableau.get(0).mRowVar.mAtom);
+		assertEquals(true, mXorTheory.mTableau.get(0).mIsDirty);
+
+		mXorTheory.checkpoint();
+		// test if a is new row var
+		assertEquals(mXorTheory.mVariableInfos.get(0), mXorTheory.mTableau.get(0).mRowVar);
+
+		// set b to true
+		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(1).mAtom);
+		mXorTheory.checkpoint();
+
+		// a must be in proplist
+		assertEquals(true, mXorTheory.mProplist.contains(mXorTheory.mVariableInfos.get(0).mAtom));
+
+	}
+
 
 }
