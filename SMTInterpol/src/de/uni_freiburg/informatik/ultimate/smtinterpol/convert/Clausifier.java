@@ -969,8 +969,6 @@ public class Clausifier {
 			} else if (at.getFunction().getName().equals("false")) {
 				return mFALSE;
 			} else if (at.getFunction().getName().equals("xor") && !quantified) {
-				// funktion aufrufen, die term entschachtelt
-				// lit = createXorLiteral
 				return createXorLiteral(at, source);
 			} else if (at.getFunction().getName().equals("=")) {
 				assert at.getParameters()[0].getSort() != mTheory.getBooleanSort();

@@ -34,9 +34,7 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLAtom;
  */
 
 public class XorAtom extends DPLLAtom {
-	/**
-	 * still needs literals maybe
-	 */
+
 	private final String mName;
 	private final Term mSmtFormula;
 	private ArrayList<DPLLAtom> mVariables;
@@ -56,6 +54,14 @@ public class XorAtom extends DPLLAtom {
 	@Override
 	public String toString() {
 		return mName;
+	}
+
+	public String toStringDebug() {
+		String variableString = null;
+		for (int i = 0; i <= mVariables.size(); i++) {
+			variableString += mVariables.get(i).getAtom().toString() + ", ";
+		}
+		return mName + ", xor(" + variableString + ")";
 	}
 
 	public ArrayList<DPLLAtom> getmVariables() {

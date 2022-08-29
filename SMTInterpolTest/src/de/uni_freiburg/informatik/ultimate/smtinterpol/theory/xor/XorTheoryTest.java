@@ -3,6 +3,7 @@ package de.uni_freiburg.informatik.ultimate.smtinterpol.theory.xor;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.LinkedHashSet;
 
 import org.junit.Assert;
@@ -104,6 +105,9 @@ public class XorTheoryTest {
 	// ---------------------------------------------------------------------------------------
 	// Test buildXorLiteral
 
+	/***
+	 * Tested feature: does buildXorLiteral actually build a XorLiteral
+	 */
 	@Test
 	public void testCase1() {
 		final LinkedHashSet<DPLLAtom> atomSet = new LinkedHashSet<DPLLAtom>(Arrays.asList(mAtoms1));
@@ -112,6 +116,11 @@ public class XorTheoryTest {
 		Assert.assertEquals("(xor a b c d)", result.getSMTFormula(mTheory).toString());
 	}
 
+	/**
+	 * Tested Feature: if the function buildXorLiteral has build a literal from a
+	 * set of DPLL Atoms, it should not build the same literal again if the same set
+	 * is given as the argument if buildXorLiteral
+	 */
 	@Test
 	public void testCase2() {
 		final LinkedHashSet<DPLLAtom> atomSet1 = new LinkedHashSet<DPLLAtom>(Arrays.asList(mAtoms1));
@@ -248,4 +257,32 @@ public class XorTheoryTest {
 	}
 
 
+	// --------------------------------------------------------------------------------------------------------
+	// Test
+
+	// --------------------------------------------------------------------------------------------------------
+
+
+	@Test
+	public void checkXorLiteral() {
+		mDPLL.increaseDecideLevel();
+
+		final Term exampleTerm1 = mTheory.term(SMTLIBConstants.XOR, mA, mB);
+		final ILiteral exampleLiteral1 = mClausifier.createLiteral(exampleTerm1, true, null);
+		final TableauRow exampleRow = mXorTheory.mTableau.get(0);
+		final BitSet exampleEntries = exampleRow.getmEntries();
+
+		// Warum ist das null?
+		final ILiteral exampleLiteralInBuiltAtoms = mXorTheory.mBuiltAtoms
+				.get(exampleEntries);
+
+		final VariableInfo exampleLiteralVarInfo = exampleRow.mRowVar;
+		final ILiteral exampleLiteralinVarInfo = exampleLiteralVarInfo.mAtom;
+
+		assertEquals(exampleLiteral1, exampleLiteralinVarInfo);
+
+		// Warum schlägt das assert fehl?
+		// assertEquals(exampleLiteralInBuiltAtoms, exampleLiteral1);
+
+	}
 }

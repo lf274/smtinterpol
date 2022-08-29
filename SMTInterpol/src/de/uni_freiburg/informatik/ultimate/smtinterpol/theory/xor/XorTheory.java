@@ -42,7 +42,19 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.util.ScopedArrayList;
 /**
  * Class implementing a XOR-reasoning module.
  *
- * to be continued..
+ * Implements a method of Xor-reasoning as described in "Extending Clause
+ * Learning SAT Solvers with Complete Parity Reasoning" by Tero Laitinen, Tommi
+ * Junttila, and Ilkka Niemelä as well as " When Boolean Satisfiability Meets
+ * Gaussian Elimination in a Simplex Way" by Cheng-Shen Han & Jie-Hong Roland
+ * Jiang
+ *
+ * If an Xor-term xor(a, b) is found by the clausifier, it will call the
+ * function buildXorLiteral() of this class to build Xor-literal xor(a, b) and
+ * adds the constraint xor( xor(a, b), a, b) (has to evaluate to false) to the
+ * tableau.
+ *
+ * If the DPLL-engine sets one of the literals occuring in the constraint to
+ * true, the function setLiteral() is called.
  *
  * @author Lena Funk
  */
@@ -137,7 +149,7 @@ public class XorTheory implements ITheory {
 		mBuiltAtoms.put(entries, xorAtom);
 		final int xorPosition = mPosition.size();
 		mPosition.put(xorAtom, xorPosition);
-		// TODO: setting VariableInfo should maybe be its own function
+
 		final VariableInfo info = new VariableInfo(xorPosition, true, xorAtom, mTableau.size());
 
 		assert xorPosition == mVariableInfos.size();
@@ -179,11 +191,7 @@ public class XorTheory implements ITheory {
 		// momentan nicht wichtig
 	}
 
-	/**
-	 * A conflict clause should be returned immediately? dann muss am ende return
-	 * checkForPropagationAndConflicts() aufgerufen werden. Oder erst bei
-	 * checkpoint?
-	 */
+
 	@Override
 	public Clause setLiteral(final Literal literal) {
 
@@ -229,16 +237,16 @@ public class XorTheory implements ITheory {
 	}
 
 	/**
-	 * This Function is called when all column variables are assigned.
-	 * In this function, the value of the row variable of the row given as parameter
-	 * is calculated. Then, if we have no conflict, the row variable is added to the
+	 * This Function is called when all column variables are assigned. In this
+	 * function, the value of the row variable of the row given as parameter is
+	 * calculated. Then, if we have no conflict, the row variable is added to the
 	 * propagation list to be propagated later in checkpoint(). If we have a
 	 * conflict, we return the conflict clause
 	 *
 	 * @param row
-	 * @return
+	 * @return conflict clause or null
 	 *
-	 *         TODO Test
+	 *
 	 */
 	public Clause checkForPropagationOrConflict(final TableauRow row) {
 		final BitSet entries = row.getmEntries();
@@ -330,8 +338,9 @@ public class XorTheory implements ITheory {
 	}
 
 	/***
-	 * This function swaps two variables. the parameter rowVar becomes a column
-	 * Variable and the parameter columnVar becomes the new row variable.
+	 * This function swaps a row variable with a column variables. the argument
+	 * rowVar becomes a column Variable and the argument columnVar becomes the new
+	 * row variable.
 	 *
 	 * The columnVar must be unassigned.
 	 *
@@ -480,15 +489,17 @@ public class XorTheory implements ITheory {
 	}
 
 	@Override
+	// TODO ist das richtig?
 	public void removeAtom(final DPLLAtom atom) {
-		final int position = mPosition.get(atom);
-		// remove all rows where atom occurs
-		for (final TableauRow row : mTableau) {
-			final BitSet entries = row.getmEntries();
-			if (entries.get(position)) {
-				mTableau.remove(row);
-			}
-		}
+//		final int position = mPosition.get(atom);
+//		// remove all rows where atom occurs
+//		for (final TableauRow row : mTableau) {
+//			final BitSet entries = row.getmEntries();
+//			if (entries.get(position)) {
+//				mTableau.remove(row);
+//			}
+//		}
+
 	}
 
 	@Override
