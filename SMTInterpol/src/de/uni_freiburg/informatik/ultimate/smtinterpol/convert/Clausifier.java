@@ -298,29 +298,6 @@ public class Clausifier {
 						pushOperation(new AddAsAxiom(split, mSource));
 					}
 					return;
-				} else if (at.getFunction().getName().equals("xor")
-						&& at.getParameters()[0].getSort() == t.getBooleanSort()) {
-					// the axioms added below already imply the auxaxiom clauses.
-					setTermFlags(term, oldFlags | assertedFlag | auxFlag);
-					final Term p1 = at.getParameters()[0];
-					final Term p2 = at.getParameters()[1];
-					if (positive) {
-						// (xor p1 p2) --> (p1 \/ p2) /\ (~p1 \/ ~p2)
-						final Term pivot = t.term("not", term);
-						buildClauseWithTautology(mAxiom, mSource, new Term[] { pivot, p1, p2 },
-								ProofConstants.TAUT_XOR_NEG_1);
-						buildClauseWithTautology(mAxiom, mSource,
-								new Term[] { pivot, t.term("not", p1), t.term("not", p2) },
-								ProofConstants.TAUT_XOR_NEG_2);
-					} else {
-						// (not (xor p1 p2)) --> (p1 \/ ~p2) /\ (~p1 \/ p2)
-						final Term pivot = term;
-						buildClauseWithTautology(mAxiom, mSource, new Term[] { pivot, p1, t.term("not", p2) },
-								ProofConstants.TAUT_XOR_POS_1);
-						buildClauseWithTautology(mAxiom, mSource, new Term[] { pivot, t.term("not", p1), p2 },
-								ProofConstants.TAUT_XOR_POS_2);
-					}
-					return;
 				} else if (at.getFunction().getName().equals("ite")) {
 					// the axioms added below already imply the auxaxiom clauses.
 					setTermFlags(term, oldFlags | assertedFlag | auxFlag);
@@ -1050,7 +1027,7 @@ public class Clausifier {
 					todoStack.addAll(Arrays.asList(at.getParameters()));
 					continue;
 				} else if (at.getFunction().getName().equals("true")) {
-					amountOfNegations += 1;
+					amountOfNegations += 1; // why
 					// ignore
 					continue;
 				} else if (at.getFunction().getName().equals("false")) {

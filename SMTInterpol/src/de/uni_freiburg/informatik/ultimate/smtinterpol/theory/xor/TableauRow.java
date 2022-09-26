@@ -81,12 +81,19 @@ public class TableauRow {
 		mNumUnassignedColumnVars += 1;
 	}
 
-	public void calculateUnassigned() {
-		mNumUnassignedColumnVars = 0;
-		for (final DPLLAtom atom : mDpllAtoms) {
-			if (atom != mRowVar.mAtom && atom.getDecideStatus() == null) {
-				mNumUnassignedColumnVars += 1;
+	public void calculateUnassigned(XorTheory xorTheory) {
+		int correctCounter = 0;
+		for (int i = mEntries.nextSetBit(0); i >= 0; i = mEntries.nextSetBit(i + 1)) {
+			if (i != mRowVar.mColumnNumber) {
+				final VariableInfo varInfo = xorTheory.mVariableInfos.get(i);
+				final DPLLAtom variableAtom = varInfo.mAtom;
+
+				if (variableAtom.getDecideStatus() == null) {
+					correctCounter++;
+				}
 			}
+
 		}
+		mNumUnassignedColumnVars = correctCounter;
 	}
 }

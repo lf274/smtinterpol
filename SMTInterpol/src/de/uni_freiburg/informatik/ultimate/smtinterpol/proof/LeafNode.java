@@ -43,6 +43,8 @@ public class LeafNode extends ProofNode {
 	/// DataType-lemma
 	public final static int THEORY_DT = -8;
 
+	public final static int THEORY_XOR = -9;
+
 	private final int mLeafKind;
 	private IAnnotation mAnnotation;
 

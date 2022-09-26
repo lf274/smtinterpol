@@ -121,7 +121,8 @@ public class TermCompiler extends TermTransformer {
 			if (fsym.isLeftAssoc() && params.length > 2) {
 				final Theory theory = appTerm.getTheory();
 				final String fsymName = fsym.getName();
-				if (fsymName == "and" || fsymName == "or" || fsymName == "+" || fsymName == "-" || fsymName == "*") {
+				if (fsymName == "and" || fsymName == "or" || fsymName == "+" || fsymName == "-" || fsymName == "*"
+						|| fsymName == "xor") {
 					// We keep some n-ary internal operators
 					enqueueWalker(new BuildApplicationTerm(appTerm));
 					pushTerms(params);

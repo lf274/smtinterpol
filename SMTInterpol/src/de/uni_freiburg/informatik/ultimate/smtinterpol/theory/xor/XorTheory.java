@@ -37,6 +37,7 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLAtom;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLEngine;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.ITheory;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.Literal;
+import de.uni_freiburg.informatik.ultimate.smtinterpol.proof.LeafNode;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.util.ScopedArrayList;
 
 /**
@@ -80,9 +81,14 @@ public class XorTheory implements ITheory {
 	final Queue<Literal> mProplist;
 
 	/**
-	 * The Tableau
+	 * The Tableau rows
 	 */
 	ScopedArrayList<TableauRow> mTableau;
+
+	/**
+	 * The Tableau columns
+	 */
+	ScopedArrayList<BitSet> mTableauColumns;
 	/**
 	 * List of Variable Infos for every variable. the variableInfo in
 	 * mVariableInfos[i] belongs to the variable on position i (i.e. with key i in
@@ -135,6 +141,7 @@ public class XorTheory implements ITheory {
 			}
 			entries.set(position);
 		}
+
 		// check if we already built this xorAtom
 		XorAtom xorAtom = mBuiltAtoms.get(entries);
 		if (xorAtom != null) {
@@ -175,8 +182,13 @@ public class XorTheory implements ITheory {
 
 		newTableauRowBitSet.set(xorPosition);
 		final TableauRow newTableauRow = new TableauRow(newTableauRowBitSet, numUnassigned, info, variables);
+		newTableauRow.calculateUnassigned(this);
+		// checkCorrectCounter(newTableauRow);
 		mTableau.add(newTableauRow);
 		mVariableInfos.set(xorPosition, info);
+//		for (final TableauRow rowTest : mTableau) {
+//			checkCorrectCounter(rowTest);
+//		}
 		return xorAtom;
 	}
 
@@ -216,6 +228,7 @@ public class XorTheory implements ITheory {
 			final TableauRow row = mTableau.get(setAtomRowNumber);
 			row.mIsDirty = true;
 		} else {
+			Clause potentialConflictClause = null;
 			// if the set variable is a column variable, we decrement the counter for all
 			// rows in which the set variable appears and check for conflicts
 			for (final TableauRow row : mTableau) {
@@ -223,14 +236,14 @@ public class XorTheory implements ITheory {
 				if (setAtomTableauRowEntries.get(setAtomPosition)) {
 					row.decrementUnassigned();
 
-
+					// checkCorrectCounter(row);
 					if (row.getNumUnassigned() == 0) {
-						final Clause potentialConflictClause = checkForPropagationOrConflict(row);
-						if (potentialConflictClause != null) { // früher: direkt return
-							return potentialConflictClause;
-						}
+						potentialConflictClause = checkForPropagationOrConflict(row);
 					}
 				}
+			}
+			if (potentialConflictClause != null) { // früher: direkt return
+				return potentialConflictClause;
 			}
 		}
 		return null;
@@ -251,31 +264,37 @@ public class XorTheory implements ITheory {
 	public Clause checkForPropagationOrConflict(final TableauRow row) {
 		final BitSet entries = row.getmEntries();
 		final DPLLAtom rowVariable = row.mRowVar.mAtom;
-		final Boolean result = false;
+		boolean result = false;
 
 		for (int i = entries.nextSetBit(0); i >= 0; i = entries.nextSetBit(i + 1)) {
-			final VariableInfo varInfo = mVariableInfos.get(i);
-			final DPLLAtom variableAtom = varInfo.mAtom;
-			// final Boolean assignment = variableAtom.getDecideStatus().getSign() > 0;
+			if (i != row.mRowVar.mColumnNumber) {
+				final VariableInfo varInfo = mVariableInfos.get(i);
+				final DPLLAtom variableAtom = varInfo.mAtom;
 
-			// calculate result (value that the row variable should have)
-			// only calculate with variables that actually have a decide status
-			if (variableAtom.getDecideStatus() != null) {
+				// calculate result (value that the row variable should have)
+				// only calculate with variables that actually have a decide status
+				assert variableAtom.getDecideStatus() != null;
 				final Boolean assignment = variableAtom.getDecideStatus().getSign() > 0;
-				Boolean.logicalXor(result, assignment);
-			}
+				result = result ^ assignment;
 
+			}
+		}
+		Literal resultLiteral;
+		if (result == false) {
+			resultLiteral = rowVariable.negate();
+		} else {
+			resultLiteral = rowVariable;
 		}
 		// if the row variable is not decided yet (DecideStatus() == null), we add it to
 		// the propagation list mProplist to propagate later in checkpoint()
-		if (rowVariable.getAtom().getDecideStatus() == null && !mProplist.contains(rowVariable)) {
-			mProplist.add(rowVariable);
+		if (rowVariable.getDecideStatus() == null && !mProplist.contains(rowVariable)) {
+			mProplist.add(resultLiteral);
 		}
 		// conflict: if the result does not equal the assigned value for the row
 		// variable, we return a conflict clause
-		if (rowVariable.getAtom().getDecideStatus() != null
-				&& rowVariable.getAtom().getDecideStatus().getSign() > 0 != result) {
-			return getUnitClause(rowVariable.getAtom());
+
+		if (rowVariable.getDecideStatus() != null && rowVariable.getDecideStatus().getSign() > 0 != result) {
+			return getUnitClause(resultLiteral);
 		}
 		return null;
 	}
@@ -301,8 +320,12 @@ public class XorTheory implements ITheory {
 				if (entries.get(positionToBacktrack)) {
 					row.incrementUnassigned();
 				}
+				// checkCorrectCounter(row);
 			}
-
+		} else {
+			final int i = varInfoToBacktrackInfo.mRowNumber;
+			final TableauRow row = mTableau.get(i);
+			row.mIsDirty = false;
 		}
 	}
 
@@ -317,7 +340,11 @@ public class XorTheory implements ITheory {
 				final int columnVarPosition = findUnassingedVarToSwap(row.mRowVar.mRowNumber);
 
 				// if this is the case, there are no unassigned variables in this row.
-				assert columnVarPosition != -1;
+				// assert columnVarPosition != -1;
+
+				if (columnVarPosition == -1) {
+					break;
+				}
 
 				swap(row.mRowVar.mColumnNumber, columnVarPosition);
 
@@ -362,7 +389,7 @@ public class XorTheory implements ITheory {
 			if (entries.get(columnVar) && row != pivotRow) {
 				entries.xor(pivotRow.getmEntries());
 				// counter updaten
-				row.calculateUnassigned();
+				row.calculateUnassigned(this);
 			}
 		}
 		// in the pivot row, the assigned row variable is now a column variable
@@ -370,12 +397,14 @@ public class XorTheory implements ITheory {
 		// row.
 		pivotRow.decrementUnassigned();
 
+
 		// set the column variable given as argument as the new row variable for the
 		// pivot row
 		pivotRow.mRowVar = columnVarInfo;
 		columnVarInfo.mRowNumber = rowVarInfo.mRowNumber;
 		// set row variable as column variable
 		rowVarInfo.mRowNumber = -1;
+		// checkCorrectCounter(pivotRow);
 	}
 
 
@@ -412,7 +441,7 @@ public class XorTheory implements ITheory {
 	public Clause getUnitClause(final Literal literal) {
 
 		final ArrayList<Literal> conflictClause = new ArrayList<Literal>();
-		final int literalPosition = mPosition.get(literal);
+		final int literalPosition = mPosition.get(literal.getAtom());
 		final VariableInfo literalInfo = mVariableInfos.get(literalPosition);
 		final int rowNumber = literalInfo.mRowNumber;
 		final TableauRow row = mTableau.get(rowNumber);
@@ -431,7 +460,8 @@ public class XorTheory implements ITheory {
 		}
 		conflictClause.add(literal);
 
-		final Clause explanationClause = new Clause(conflictClause.toArray(new Literal[conflictClause.size()]));
+		final Clause explanationClause = new Clause(conflictClause.toArray(new Literal[conflictClause.size()]),
+				new LeafNode(LeafNode.THEORY_XOR, XorAnnotation.XOR));
 		return explanationClause;
 	}
 
@@ -473,6 +503,9 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public Clause backtrackComplete() {
+//		for (final TableauRow row : mTableau) {
+//			checkCorrectCounter(row);
+//		}
 		return null;
 	}
 
@@ -504,9 +537,6 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void push() {
-		// siehe LA Theorie.
-		// startscope bei allen ScopedArrayLists
-		// merken, wie viele Zeilen man hat
 		mTableau.beginScope();
 		mVariableInfos.beginScope();
 
@@ -555,6 +585,26 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void backtrackStart() {
+//		for (final TableauRow row : mTableau) {
+//			checkCorrectCounter(row);
+//		}
 		mProplist.clear();
+	}
+
+	public void checkCorrectCounter(TableauRow row) {
+		int correctCounter = 0;
+		final BitSet rowEntries = row.getmEntries();
+		for (int i = rowEntries.nextSetBit(0); i >= 0; i = rowEntries.nextSetBit(i + 1)) {
+			if (i != row.mRowVar.mColumnNumber) {
+				final VariableInfo varInfo = mVariableInfos.get(i);
+				final DPLLAtom variableAtom = varInfo.mAtom;
+
+				if (variableAtom.getDecideStatus() == null) {
+					correctCounter++;
+				}
+			}
+
+		}
+		assert (correctCounter == row.getNumUnassigned());
 	}
 }

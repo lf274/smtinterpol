@@ -53,7 +53,7 @@ public class XorAtom extends DPLLAtom {
 
 	@Override
 	public String toString() {
-		return mName;
+		return mSmtFormula.toString();
 	}
 
 	public String toStringDebug() {
