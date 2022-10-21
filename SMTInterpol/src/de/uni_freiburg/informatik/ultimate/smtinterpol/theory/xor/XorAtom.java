@@ -56,13 +56,6 @@ public class XorAtom extends DPLLAtom {
 		return mSmtFormula.toString();
 	}
 
-	public String toStringDebug() {
-		String variableString = null;
-		for (int i = 0; i <= mVariables.size(); i++) {
-			variableString += mVariables.get(i).getAtom().toString() + ", ";
-		}
-		return mName + ", xor(" + variableString + ")";
-	}
 
 	public ArrayList<DPLLAtom> getmVariables() {
 		return mVariables;

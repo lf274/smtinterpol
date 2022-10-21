@@ -39,6 +39,7 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.ITheory;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.Literal;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.proof.LeafNode;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.util.ScopedArrayList;
+import de.uni_freiburg.informatik.ultimate.util.datastructures.ScopedHashMap;
 
 /**
  * Class implementing a XOR-reasoning module.
@@ -88,7 +89,7 @@ public class XorTheory implements ITheory {
 	/**
 	 * The Tableau columns
 	 */
-	ScopedArrayList<BitSet> mTableauColumns;
+	ScopedHashMap<Integer, BitSet> mTableauColumns;
 	/**
 	 * List of Variable Infos for every variable. the variableInfo in
 	 * mVariableInfos[i] belongs to the variable on position i (i.e. with key i in
@@ -107,6 +108,9 @@ public class XorTheory implements ITheory {
 		mProplist = new ArrayDeque<>();
 
 		mTableau = new ScopedArrayList<TableauRow>();
+		//
+		mTableauColumns = new ScopedHashMap<Integer, BitSet>();
+		//
 		mVariableInfos = new ScopedArrayList<VariableInfo>();
 		mVariableSet = new HashSet<DPLLAtom>();
 
@@ -157,6 +161,7 @@ public class XorTheory implements ITheory {
 		final int xorPosition = mPosition.size();
 		mPosition.put(xorAtom, xorPosition);
 
+
 		final VariableInfo info = new VariableInfo(xorPosition, true, xorAtom, mTableau.size());
 
 		assert xorPosition == mVariableInfos.size();
@@ -183,12 +188,18 @@ public class XorTheory implements ITheory {
 		newTableauRowBitSet.set(xorPosition);
 		final TableauRow newTableauRow = new TableauRow(newTableauRowBitSet, numUnassigned, info, variables);
 		newTableauRow.calculateUnassigned(this);
-		// checkCorrectCounter(newTableauRow);
 		mTableau.add(newTableauRow);
+
 		mVariableInfos.set(xorPosition, info);
-//		for (final TableauRow rowTest : mTableau) {
-//			checkCorrectCounter(rowTest);
-//		}
+
+		// add to tableau columns
+		for (int i = newTableauRowBitSet.nextSetBit(0); i >= 0; i = newTableauRowBitSet.nextSetBit(i + 1)) {
+			if (!mTableauColumns.containsKey(i)) {
+				final BitSet column = new BitSet();
+				mTableauColumns.put(i, column);
+			}
+			mTableauColumns.get(i).set(info.mRowNumber);
+		}
 		return xorAtom;
 	}
 
@@ -217,9 +228,8 @@ public class XorTheory implements ITheory {
 		}
 		final VariableInfo setAtomInfo = mVariableInfos.get(setAtomPosition);
 		final int setAtomRowNumber = setAtomInfo.mRowNumber;
-
 		// recalculate counter of corresponding tableau rows (every row where the
-		// position of literal is set, i.e. 1)
+		// position of literal is set, i.e. 1), if the set literal is not a row variable
 
 		// if the set variable is a row variable, we mark the row as dirty to propagate
 		// later
@@ -229,20 +239,45 @@ public class XorTheory implements ITheory {
 			row.mIsDirty = true;
 		} else {
 			Clause potentialConflictClause = null;
-			// if the set variable is a column variable, we decrement the counter for all
-			// rows in which the set variable appears and check for conflicts
-			for (final TableauRow row : mTableau) {
-				final BitSet setAtomTableauRowEntries = row.getmEntries();
-				if (setAtomTableauRowEntries.get(setAtomPosition)) {
-					row.decrementUnassigned();
 
-					// checkCorrectCounter(row);
-					if (row.getNumUnassigned() == 0) {
-						potentialConflictClause = checkForPropagationOrConflict(row);
-					}
+//			// without columns
+//			// if the set variable is a column variable, we decrement the counter for all
+//			// rows in which the set variable appears and check for conflicts
+//			for (final TableauRow row : mTableau) {
+//				// checkCorrectCounter(row);
+//				// row.calculateUnassigned(this);
+//				final BitSet setAtomTableauRowEntries = row.getmEntries();
+//				if (setAtomTableauRowEntries.get(setAtomPosition)) {
+//					row.decrementUnassigned();
+//
+//					// checkCorrectCounter(row);
+//					if (row.getNumUnassigned() == 0) {
+//						potentialConflictClause = checkForPropagationOrConflict(row);
+//					}
+//				}
+//			}
+
+			// with columns:
+			// get corresponding column
+			final BitSet setAtomColumn = mTableauColumns.get(setAtomPosition);
+
+			// walk through the set bits of the column. when a bit is set, then we have to
+			// decrement the number of unassigned variables
+			for (int i = setAtomColumn.nextSetBit(0); i >= 0; i = setAtomColumn.nextSetBit(i + 1)) {
+				final TableauRow row = mTableau.get(i);
+
+				// TODO Problem hier mit counter. ist manchmal?? eins zu wenig, deshalb
+				// calculateUnassigned fürs erste
+				row.calculateUnassigned(this);
+//				row.decrementUnassigned();
+//				checkCorrectCounter(row);
+				if (row.getNumUnassigned() == 0) {
+					potentialConflictClause = checkForPropagationOrConflict(row);
 				}
 			}
-			if (potentialConflictClause != null) { // früher: direkt return
+
+
+			if (potentialConflictClause != null) {
 				return potentialConflictClause;
 			}
 		}
@@ -266,6 +301,8 @@ public class XorTheory implements ITheory {
 		final DPLLAtom rowVariable = row.mRowVar.mAtom;
 		boolean result = false;
 
+		assert row.getNumUnassigned() == 0;
+
 		for (int i = entries.nextSetBit(0); i >= 0; i = entries.nextSetBit(i + 1)) {
 			if (i != row.mRowVar.mColumnNumber) {
 				final VariableInfo varInfo = mVariableInfos.get(i);
@@ -287,13 +324,16 @@ public class XorTheory implements ITheory {
 		}
 		// if the row variable is not decided yet (DecideStatus() == null), we add it to
 		// the propagation list mProplist to propagate later in checkpoint()
-		if (rowVariable.getDecideStatus() == null && !mProplist.contains(rowVariable)) {
+		// change !mProplist.contains(rowVariable) to !mProplist.contains(res)
+		if (rowVariable.getDecideStatus() == null && !mProplist.contains(rowVariable)
+				&& !mProplist.contains(resultLiteral)) {
 			mProplist.add(resultLiteral);
 		}
 		// conflict: if the result does not equal the assigned value for the row
 		// variable, we return a conflict clause
 
 		if (rowVariable.getDecideStatus() != null && rowVariable.getDecideStatus().getSign() > 0 != result) {
+			assert (row.getNumUnassigned() == 0);
 			return getUnitClause(resultLiteral);
 		}
 		return null;
@@ -312,16 +352,25 @@ public class XorTheory implements ITheory {
 		final VariableInfo varInfoToBacktrackInfo = mVariableInfos.get(positionToBacktrack);
 
 		if (!varInfoToBacktrackInfo.IsRow()) {
-			// if the variable to be backtracked is a column var, we need to update
-			// mNumUnassignedColumnVars for each row where the variable to be backtracked
-			// occurs.
-			for (final TableauRow row: mTableau) {
+//			// if the variable to be backtracked is a column var, we need to update
+//			// mNumUnassignedColumnVars for each row where the variable to be backtracked
+//			// occurs.
+//			for (final TableauRow row: mTableau) {
+//				final BitSet entries = row.getmEntries();
+//				if (entries.get(positionToBacktrack)) {
+//					row.incrementUnassigned();
+//				}
+//				// checkCorrectCounter(row);
+//			}
+			final BitSet columnToBacktrack = mTableauColumns.get(positionToBacktrack);
+			for (int i = columnToBacktrack.nextSetBit(0); i >= 0; i = columnToBacktrack.nextSetBit(i + 1)) {
+				final TableauRow row = mTableau.get(i);
 				final BitSet entries = row.getmEntries();
 				if (entries.get(positionToBacktrack)) {
 					row.incrementUnassigned();
 				}
-				// checkCorrectCounter(row);
 			}
+
 		} else {
 			final int i = varInfoToBacktrackInfo.mRowNumber;
 			final TableauRow row = mTableau.get(i);
@@ -345,6 +394,8 @@ public class XorTheory implements ITheory {
 				if (columnVarPosition == -1) {
 					break;
 				}
+				// row.calculateUnassigned(this);
+				// checkCorrectCounter(row);
 
 				swap(row.mRowVar.mColumnNumber, columnVarPosition);
 
@@ -381,17 +432,37 @@ public class XorTheory implements ITheory {
 		final VariableInfo columnVarInfo = mVariableInfos.get(columnVar);
 		final TableauRow pivotRow = mTableau.get(rowVarInfo.mRowNumber);
 
-
 		// walk through rows of the tableau. if the column variable occurs, we xor that
 		// row with the pivot row
-		for (final TableauRow row : mTableau) {
+//		for (final TableauRow row : mTableau) {
+//			final BitSet entries = row.getmEntries();
+//			if (entries.get(columnVar) && row != pivotRow) {
+//				entries.xor(pivotRow.getmEntries());
+//				// counter updaten
+//				row.calculateUnassigned(this);
+//			}
+//		}
+
+		final BitSet column = mTableauColumns.get(columnVar);
+
+		for (int i = column.nextSetBit(0); i >= 0; i = column.nextSetBit(i + 1)) {
+			final TableauRow row = mTableau.get(i);
+			final Integer rowNumber = row.mRowVar.mRowNumber;
 			final BitSet entries = row.getmEntries();
-			if (entries.get(columnVar) && row != pivotRow) {
+			if (row != pivotRow && entries.get(columnVar)) {
 				entries.xor(pivotRow.getmEntries());
-				// counter updaten
 				row.calculateUnassigned(this);
+				for (int j = 0; j < entries.length(); ++j) {
+					if (entries.get(j)) {
+						mTableauColumns.get(j).set(rowNumber);
+					} else {
+						mTableauColumns.get(j).clear(rowNumber);
+					}
+				}
+
 			}
 		}
+
 		// in the pivot row, the assigned row variable is now a column variable
 		// therefore we need to decrement the unassigned column variables for our pivot
 		// row.
@@ -404,7 +475,7 @@ public class XorTheory implements ITheory {
 		columnVarInfo.mRowNumber = rowVarInfo.mRowNumber;
 		// set row variable as column variable
 		rowVarInfo.mRowNumber = -1;
-		// checkCorrectCounter(pivotRow);
+		checkCorrectCounter(pivotRow);
 	}
 
 
@@ -450,10 +521,14 @@ public class XorTheory implements ITheory {
 		// go through set entries of the row of the literal given as parameter
 		// get the literal corresponding to the set bit, negate it and add it to the
 		// conflict clause
+
+		assert (row.getNumUnassigned() == 0);
 		for (int i = entries.nextSetBit(0); i >= 0; i = entries.nextSetBit(i + 1)) {
 			// skip row variable (xor literal)
 			if (i != literalPosition) {
+				assert (row.getNumUnassigned() == 0);
 				final DPLLAtom explanationAtom = mVariableInfos.get(i).mAtom;
+				assert (row.getNumUnassigned() == 0);
 				final Literal explanationLiteral = explanationAtom.getDecideStatus().negate();
 				conflictClause.add(explanationLiteral);
 			}
@@ -570,6 +645,10 @@ public class XorTheory implements ITheory {
 		for (int i = mVariableInfos.size() - 1; i >= lastScopeVarInfo; i--) {
 			rowVarToDeleteInfo = mVariableInfos.get(i);
 			mPosition.remove(rowVarToDeleteInfo.mAtom);
+
+		}
+		for (final BitSet column : mTableauColumns.values()) {
+			column.clear(prevVarNum, column.length());
 
 		}
 		mTableau.endScope();
