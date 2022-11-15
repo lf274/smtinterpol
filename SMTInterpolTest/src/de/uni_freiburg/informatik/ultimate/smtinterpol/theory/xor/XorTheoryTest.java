@@ -3,7 +3,6 @@ package de.uni_freiburg.informatik.ultimate.smtinterpol.theory.xor;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.LinkedHashSet;
 
 import org.junit.Assert;
@@ -143,10 +142,6 @@ public class XorTheoryTest {
 
 	@Test
 	public void testCase4() {
-//		mDPLL.setLiteral(mAtoms[0]);
-//		mDPLL.setLiteral(mAtoms[1]);
-//		mDPLL.setLiteral(mAtoms[2]);
-//		mDPLL.setLiteral(mAtoms[3]);
 		mDPLL.increaseDecideLevel();
 		final LinkedHashSet<DPLLAtom> atomSet1 = new LinkedHashSet<DPLLAtom>(
 				Arrays.asList(mAtoms2[0], mAtoms2[1], mAtoms2[2], mAtoms2[3]));
@@ -216,7 +211,6 @@ public class XorTheoryTest {
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(0).mAtom);
 		assertEquals(true, mXorTheory.mVariableInfos.get(0).mAtom.getDecideStatus().getSign() > 0);
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(1).mAtom);
-		// mDPLL.setLiteral(mXorTheory.mVariableInfos.get(2).mAtom);
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(3).mAtom);
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(4).mAtom);
 
@@ -224,7 +218,7 @@ public class XorTheoryTest {
 		mDPLL.setLiteral(mXorTheory.mVariableInfos.get(2).mAtom);
 		assertEquals(true, mXorTheory.mVariableInfos.get(2).mAtom.getDecideStatus().getSign() > 0);
 		mXorTheory.checkForPropagationOrConflict(mXorTheory.mTableau.get(mXorTheory.mVariableInfos.get(2).mRowNumber));
-		// assertEquals(2, mXorTheory.mProplist.size());
+		assertEquals(1, mXorTheory.mProplist.size());
 	}
 
 	// --------------------------------------------------------------------------------------------------------
@@ -253,36 +247,6 @@ public class XorTheoryTest {
 
 		// not a must be in proplist
 		assertEquals(true, mXorTheory.mProplist.contains(mXorTheory.mVariableInfos.get(0).mAtom.negate()));
-
-	}
-
-
-	// --------------------------------------------------------------------------------------------------------
-	// Test
-
-	// --------------------------------------------------------------------------------------------------------
-
-
-	@Test
-	public void checkXorLiteral() {
-		mDPLL.increaseDecideLevel();
-
-		final Term exampleTerm1 = mTheory.term(SMTLIBConstants.XOR, mA, mB);
-		final ILiteral exampleLiteral1 = mClausifier.createLiteral(exampleTerm1, true, null);
-		final TableauRow exampleRow = mXorTheory.mTableau.get(0);
-		final BitSet exampleEntries = exampleRow.getmEntries();
-
-		// Warum ist das null?
-		final ILiteral exampleLiteralInBuiltAtoms = mXorTheory.mBuiltAtoms
-				.get(exampleEntries);
-
-		final VariableInfo exampleLiteralVarInfo = exampleRow.mRowVar;
-		final ILiteral exampleLiteralinVarInfo = exampleLiteralVarInfo.mAtom;
-
-		assertEquals(exampleLiteral1, exampleLiteralinVarInfo);
-
-		// Warum schlägt das assert fehl?
-		// assertEquals(exampleLiteralInBuiltAtoms, exampleLiteral1);
 
 	}
 }

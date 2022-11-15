@@ -22,7 +22,7 @@ package de.uni_freiburg.informatik.ultimate.smtinterpol.theory.xor;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLAtom;
 
 /**
- * Class to represent needed information about a Variable.
+ * Auxiliary class to represent needed information about a Variable.
  *
  * @author Lena Funk
  */
@@ -45,7 +45,6 @@ public class VariableInfo {
 
 	public VariableInfo(final int position, final boolean isNonBasic, final DPLLAtom atom, final int rowNumber) {
 		mColumnNumber = position;
-		// mIsNonBasic = isNonBasic;
 		mAtom = atom;
 		mRowNumber = rowNumber;
 	}

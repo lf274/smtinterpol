@@ -28,7 +28,6 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLAtom;
 /**
  * Class implementing a XOR-Atom to be used with the XOR Theory
  *
- * To be continued..
  *
  * @author Lena Funk
  */

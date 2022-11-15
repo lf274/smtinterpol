@@ -1000,16 +1000,16 @@ public class Clausifier {
 		return lit;
 	}
 
+	/**
+	 * Create Xor-Literal for the given term. Also calls buildXorLiteral from the
+	 * XorTheory-Class to add the Xor-Literal and the corresponding variables as a
+	 * constraint to the tableau.
+	 *
+	 * @param term   The term for which a Xor-Literal should be created.
+	 * @param source The source annotation that is used for auxiliary axioms.
+	 * @return the Xor-Literal.
+	 */
 	private ILiteral createXorLiteral(ApplicationTerm xorTerm, SourceAnnotation source) {
-		// to-do stack als liste von termen
-		// term ist xor: packe parameter auf todo stack
-		// term ist not: merken, wie viele not bereits gesehen
-		// sonst: create literal. gibt ILiteral zurück (True, False oder DPLL Literal)
-		// bei true nochmal negieren
-		// bei false ignorieren
-		// bei DPLL Literal: Atom holen, wenn DPLL Literal negiert war, Polarität ändern
-		// Linked Hashset aus Atomen bauen
-		// aus Linked HashSet XorLiteral bauen, bei ungeraden nots nochmal negieren
 		final ArrayDeque<Term> todoStack = new ArrayDeque<>();
 		final LinkedHashSet<DPLLAtom> atoms = new LinkedHashSet<>();
 		todoStack.addAll(Arrays.asList(xorTerm.getParameters()));
@@ -1027,7 +1027,7 @@ public class Clausifier {
 					todoStack.addAll(Arrays.asList(at.getParameters()));
 					continue;
 				} else if (at.getFunction().getName().equals("true")) {
-					amountOfNegations += 1; // why
+					amountOfNegations += 1;
 					// ignore
 					continue;
 				} else if (at.getFunction().getName().equals("false")) {

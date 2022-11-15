@@ -1,3 +1,22 @@
+/*
+ * Copyright (C) 2009-2012 University of Freiburg
+ *
+ * This file is part of SMTInterpol.
+ *
+ * SMTInterpol is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * SMTInterpol is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with SMTInterpol.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package de.uni_freiburg.informatik.ultimate.smtinterpol.theory.xor;
 
 import java.util.BitSet;
@@ -7,7 +26,7 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLAtom;
 
 /**
  * Data structure that stores a row of the linear arithmetic tableau to be used
- * by XorTheory.
+ * by the XorTheory.
  *
  *
  *
@@ -32,7 +51,7 @@ public class TableauRow {
 
 	Boolean mIsDirty; // a row is dirty, if the row variable is set
 
-	Set<DPLLAtom> mDpllAtoms;
+	// Set<DPLLAtom> mDpllAtoms;
 
 
 	public TableauRow(final BitSet newRow, final int numUnassigned, final VariableInfo rowVar,
@@ -41,7 +60,7 @@ public class TableauRow {
 		setNumUnassigned(numUnassigned);
 		mRowVar = rowVar;
 		mIsDirty = false;
-		mDpllAtoms = dpllAtoms;
+		// mDpllAtoms = dpllAtoms;
 	}
 
 

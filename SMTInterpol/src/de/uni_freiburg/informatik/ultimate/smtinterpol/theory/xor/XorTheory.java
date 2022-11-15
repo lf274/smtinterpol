@@ -22,7 +22,6 @@ package de.uni_freiburg.informatik.ultimate.smtinterpol.theory.xor;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Queue;
 import java.util.Set;
@@ -42,7 +41,7 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.util.ScopedArrayList;
 import de.uni_freiburg.informatik.ultimate.util.datastructures.ScopedHashMap;
 
 /**
- * Class implementing a XOR-reasoning module.
+ * Class implementing a XOR Theory.
  *
  * Implements a method of Xor-reasoning as described in "Extending Clause
  * Learning SAT Solvers with Complete Parity Reasoning" by Tero Laitinen, Tommi
@@ -50,13 +49,15 @@ import de.uni_freiburg.informatik.ultimate.util.datastructures.ScopedHashMap;
  * Gaussian Elimination in a Simplex Way" by Cheng-Shen Han & Jie-Hong Roland
  * Jiang
  *
- * If an Xor-term xor(a, b) is found by the clausifier, it will call the
- * function buildXorLiteral() of this class to build Xor-literal xor(a, b) and
- * adds the constraint xor( xor(a, b), a, b) (has to evaluate to false) to the
- * tableau.
+ * To build the Tableau, we construct for each Xor-Term an Xor-Variable, that
+ * represents the xor of the non-basic (column) variables, the Xor-Variable will
+ * be our basic (row) variable.
  *
- * If the DPLL-engine sets one of the literals occuring in the constraint to
- * true, the function setLiteral() is called.
+ * When all the column-Variables are set, we compute the value of the row
+ * variable and propagate the resulting value to the DPLL-Engine. For this, the
+ * row variable may never be set if column variables are still unset. Also, a
+ * row variable occurs only once in the Tableau.
+ *
  *
  * @author Lena Funk
  */
@@ -97,7 +98,6 @@ public class XorTheory implements ITheory {
 	 */
 	ScopedArrayList<VariableInfo> mVariableInfos;
 
-	private final Set<DPLLAtom> mVariableSet;
 
 	public XorTheory(final Clausifier clausifier) {
 		mClausifier = clausifier;
@@ -112,7 +112,6 @@ public class XorTheory implements ITheory {
 		mTableauColumns = new ScopedHashMap<Integer, BitSet>();
 		//
 		mVariableInfos = new ScopedArrayList<VariableInfo>();
-		mVariableSet = new HashSet<DPLLAtom>();
 
 	}
 
@@ -168,10 +167,10 @@ public class XorTheory implements ITheory {
 		mVariableInfos.add(info);
 
 		final BitSet newTableauRowBitSet = (BitSet) entries.clone();
-		// nach dem Klonen: BitSet durchlaufen. checken für jedes gesetzte Bit ob es
-		// eine Zeilenvariable ist
-		// Wenn ja entries mit der betreffenden Zeile xor-en. so kommt die Variable
-		// wieder raus aus dem Bitset
+
+		// check if a column variable that is set in newTableauRowBitSet occurs
+		// elsewhere in the tableau as a row variable.
+		// if this is the case xor newTableauRowBitSet with that row
 
 		BitSet row = new BitSet();
 		for (int i = 0; i < newTableauRowBitSet.length(); ++i) {
@@ -205,13 +204,11 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public Clause startCheck() {
-		// momentan nicht wichtig
 		return null;
 	}
 
 	@Override
 	public void endCheck() {
-		// momentan nicht wichtig
 	}
 
 
@@ -240,24 +237,6 @@ public class XorTheory implements ITheory {
 		} else {
 			Clause potentialConflictClause = null;
 
-//			// without columns
-//			// if the set variable is a column variable, we decrement the counter for all
-//			// rows in which the set variable appears and check for conflicts
-//			for (final TableauRow row : mTableau) {
-//				// checkCorrectCounter(row);
-//				// row.calculateUnassigned(this);
-//				final BitSet setAtomTableauRowEntries = row.getmEntries();
-//				if (setAtomTableauRowEntries.get(setAtomPosition)) {
-//					row.decrementUnassigned();
-//
-//					// checkCorrectCounter(row);
-//					if (row.getNumUnassigned() == 0) {
-//						potentialConflictClause = checkForPropagationOrConflict(row);
-//					}
-//				}
-//			}
-
-			// with columns:
 			// get corresponding column
 			final BitSet setAtomColumn = mTableauColumns.get(setAtomPosition);
 
@@ -266,19 +245,14 @@ public class XorTheory implements ITheory {
 			for (int i = setAtomColumn.nextSetBit(0); i >= 0; i = setAtomColumn.nextSetBit(i + 1)) {
 				final TableauRow row = mTableau.get(i);
 
-				// TODO Problem hier mit counter. ist manchmal?? eins zu wenig, deshalb
-				// calculateUnassigned fürs erste
 				row.calculateUnassigned(this);
-//				row.decrementUnassigned();
-//				checkCorrectCounter(row);
+
 				if (row.getNumUnassigned() == 0) {
 					potentialConflictClause = checkForPropagationOrConflict(row);
 				}
-			}
-
-
-			if (potentialConflictClause != null) {
-				return potentialConflictClause;
+				if (potentialConflictClause != null) {
+					return potentialConflictClause;
+				}
 			}
 		}
 		return null;
@@ -352,16 +326,6 @@ public class XorTheory implements ITheory {
 		final VariableInfo varInfoToBacktrackInfo = mVariableInfos.get(positionToBacktrack);
 
 		if (!varInfoToBacktrackInfo.IsRow()) {
-//			// if the variable to be backtracked is a column var, we need to update
-//			// mNumUnassignedColumnVars for each row where the variable to be backtracked
-//			// occurs.
-//			for (final TableauRow row: mTableau) {
-//				final BitSet entries = row.getmEntries();
-//				if (entries.get(positionToBacktrack)) {
-//					row.incrementUnassigned();
-//				}
-//				// checkCorrectCounter(row);
-//			}
 			final BitSet columnToBacktrack = mTableauColumns.get(positionToBacktrack);
 			for (int i = columnToBacktrack.nextSetBit(0); i >= 0; i = columnToBacktrack.nextSetBit(i + 1)) {
 				final TableauRow row = mTableau.get(i);
@@ -379,7 +343,6 @@ public class XorTheory implements ITheory {
 	}
 
 
-	// TODO: Test
 	@Override
 	public Clause checkpoint() {
 		for (final TableauRow row : mTableau) {
@@ -394,8 +357,6 @@ public class XorTheory implements ITheory {
 				if (columnVarPosition == -1) {
 					break;
 				}
-				// row.calculateUnassigned(this);
-				// checkCorrectCounter(row);
 
 				swap(row.mRowVar.mColumnNumber, columnVarPosition);
 
@@ -405,7 +366,8 @@ public class XorTheory implements ITheory {
 		}
 		// check for conflicts and propagations
 		for (final TableauRow row : mTableau) {
-			if (row.getNumUnassigned() == 0) { // we are ready for checking for conflicts or propagations
+			if (row.getNumUnassigned() == 0) {
+				// we are ready for checking for conflicts or propagations
 				final Clause conflictClause = checkForPropagationOrConflict(row);
 				if (conflictClause != null) {
 					return conflictClause;
@@ -431,17 +393,6 @@ public class XorTheory implements ITheory {
 		final VariableInfo rowVarInfo = mVariableInfos.get(rowVar);
 		final VariableInfo columnVarInfo = mVariableInfos.get(columnVar);
 		final TableauRow pivotRow = mTableau.get(rowVarInfo.mRowNumber);
-
-		// walk through rows of the tableau. if the column variable occurs, we xor that
-		// row with the pivot row
-//		for (final TableauRow row : mTableau) {
-//			final BitSet entries = row.getmEntries();
-//			if (entries.get(columnVar) && row != pivotRow) {
-//				entries.xor(pivotRow.getmEntries());
-//				// counter updaten
-//				row.calculateUnassigned(this);
-//			}
-//		}
 
 		final BitSet column = mTableauColumns.get(columnVar);
 
@@ -475,7 +426,6 @@ public class XorTheory implements ITheory {
 		columnVarInfo.mRowNumber = rowVarInfo.mRowNumber;
 		// set row variable as column variable
 		rowVarInfo.mRowNumber = -1;
-		checkCorrectCounter(pivotRow);
 	}
 
 
@@ -498,9 +448,6 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public Literal getPropagatedLiteral() {
-		/**
-		 * Check if mPropList is empty, if not return first element
-		 */
 		if (!mProplist.isEmpty()) {
 			return mProplist.remove();
 		} else {
@@ -526,9 +473,9 @@ public class XorTheory implements ITheory {
 		for (int i = entries.nextSetBit(0); i >= 0; i = entries.nextSetBit(i + 1)) {
 			// skip row variable (xor literal)
 			if (i != literalPosition) {
-				assert (row.getNumUnassigned() == 0);
+				// assert (row.getNumUnassigned() == 0);
 				final DPLLAtom explanationAtom = mVariableInfos.get(i).mAtom;
-				assert (row.getNumUnassigned() == 0);
+				// assert (row.getNumUnassigned() == 0);
 				final Literal explanationLiteral = explanationAtom.getDecideStatus().negate();
 				conflictClause.add(explanationLiteral);
 			}
@@ -542,7 +489,6 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public Literal getSuggestion() {
-		// momentan nicht wichtig
 		return null;
 	}
 
@@ -553,61 +499,37 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void printStatistics(final LogProxy logger) {
-		// TODO Auto-generated method stub
-		// wie viel zeit gebraucht zum pivoten
 	}
 
 	@Override
 	public void dumpModel(final LogProxy logger) {
-		// TODO Auto-generated method stub
-		// debugging funktion
 	}
 
 	@Override
 	public void increasedDecideLevel(final int currentDecideLevel) {
-		// momentan nicht wichtig
-
 	}
 
 	@Override
 	public void decreasedDecideLevel(final int currentDecideLevel) {
-		// momentan nicht wichtig
 	}
 
 
 
 	@Override
 	public Clause backtrackComplete() {
-//		for (final TableauRow row : mTableau) {
-//			checkCorrectCounter(row);
-//		}
 		return null;
 	}
 
 	@Override
 	public void backtrackAll() {
-		// momentan nicht wichtig
-
 	}
 
 	@Override
 	public void restart(final int iteration) {
-		// momentan nicht wichtig
-
 	}
 
 	@Override
-	// TODO ist das richtig?
 	public void removeAtom(final DPLLAtom atom) {
-//		final int position = mPosition.get(atom);
-//		// remove all rows where atom occurs
-//		for (final TableauRow row : mTableau) {
-//			final BitSet entries = row.getmEntries();
-//			if (entries.get(position)) {
-//				mTableau.remove(row);
-//			}
-//		}
-
 	}
 
 	@Override
@@ -619,10 +541,6 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void pop() {
-		// siehe LA Theorie
-		// endscope bei allen ScopedArrayLists
-		// gelöschte Variablen durchgehen.
-		// Zustand vor dem zugehörigen push wiederherstellen
 		TableauRow rowToDelete;
 		BitSet entriesToDelete;
 		VariableInfo rowVarToDeleteInfo;
@@ -664,9 +582,6 @@ public class XorTheory implements ITheory {
 
 	@Override
 	public void backtrackStart() {
-//		for (final TableauRow row : mTableau) {
-//			checkCorrectCounter(row);
-//		}
 		mProplist.clear();
 	}
 
